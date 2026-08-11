@@ -1,0 +1,34 @@
+
+    // --- Sync ---
+    val syncing = MutableStateFlow(false)
+    val lastSyncTime = MutableStateFlow(0L)
+    val pendingChangesCount = MutableStateFlow(0)
+    fun setOnline(online: Boolean) {}
+    fun triggerSync() {}
+
+    // --- Backup ---
+    fun getBackupFilesList(context: android.content.Context): List<java.io.File> = emptyList()
+    fun exportBackupToUri(uri: android.net.Uri, context: android.content.Context) {}
+    fun validateBackupFromUri(uri: android.net.Uri, context: android.content.Context): Boolean = false
+    fun validateBackupFile(file: java.io.File): Boolean = false
+    fun backupDatabaseFile(context: android.content.Context, name: String) {}
+    fun deleteBackupFile(file: java.io.File) {}
+    fun restoreData() {}
+    fun restoreDatabaseFile(context: android.content.Context, file: java.io.File) {}
+    fun resetCompanyWorkspace() {}
+
+    // --- Expense Categories ---
+    fun saveExpenseCategory(category: com.example.data.ExpenseCategory) {
+        viewModelScope.launch {
+            repository.dao.insertExpenseCategory(category)
+        }
+    }
+    fun deleteExpenseCategory(id: Int) {
+        viewModelScope.launch {
+            repository.dao.deleteExpenseCategory(id)
+        }
+    }
+    fun mergeExpenseCategories(sourceId: Int, targetId: Int) {}
+
+    // --- Developer / Theme ---
+    fun toggleDarkMode() {}

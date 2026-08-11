@@ -1,0 +1,23 @@
+--- app/src/main/java/com/example/data/auth/TokenManager.kt
++++ app/src/main/java/com/example/data/auth/TokenManager.kt
+@@ -4,6 +4,20 @@
+ import com.example.data.HamrahanDao
+ import com.example.data.SystemSetting
+ import com.squareup.moshi.Moshi
++
++data class SignUpResponse(
++    val idToken: String = "",
++    val refreshToken: String = "",
++    val expiresIn: String = "",
++    val localId: String = ""
++)
++
++data class RefreshResponse(
++    val id_token: String = "",
++    val refresh_token: String = "",
++    val expires_in: String = ""
++)
++
+ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.withContext

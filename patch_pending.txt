@@ -1,0 +1,38 @@
+            if (pendingDevices.isNotEmpty()) {
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFEF3C7),
+                            contentColor = Color(0xFFD97706)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                        border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.3f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "درخواست دسترسی جدید (${pendingDevices.size})",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = "دستگاه‌های جدیدی درخواست اتصال به دفتر شما را دارند. برای مدیریت و تایید دسترسی به بخش شناسنامه مرکز مراجعه کنید.",
+                                style = MaterialTheme.typography.bodySmall,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                }
+            }

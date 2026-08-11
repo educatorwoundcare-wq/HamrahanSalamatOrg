@@ -1,0 +1,18 @@
+
+    val companyName = kotlinx.coroutines.flow.MutableStateFlow("")
+    val taxPercentage = kotlinx.coroutines.flow.MutableStateFlow(0f)
+    val defaultCurrency = kotlinx.coroutines.flow.MutableStateFlow("")
+    val isDarkMode = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val autoGenerateFixedExpenses = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val fieldActiveSubmitter = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val fieldActiveReceipt = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val fieldActiveDescription = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val fieldActivePaymentMethod = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val moduleDonutChart = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val moduleBarChart = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val moduleHeatMap = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val moduleStatCards = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val userRole = kotlinx.coroutines.flow.MutableStateFlow("")
+    val companyAddress = kotlinx.coroutines.flow.MutableStateFlow("")
+    val companyPostalCode = kotlinx.coroutines.flow.MutableStateFlow("")
+

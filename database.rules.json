@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "companies": {
+      "$companyId": {
+        // --- Company Workspace Isolation ---
+        // Cascade active device validation for general root operations
+        ".read": "auth != null && data.child('devices').child(auth.uid).child('status').val() == 'Active'",
+        ".write": "auth != null && data.child('devices').child(auth.uid).child('status').val() == 'Active'",
+
+        "info": {
+          // Allow reading workspace metadata for any authenticated user to perform the company join lookup safely
+          ".read": "auth != null",
+          // Allow writing info when creating the workspace (if it doesn't exist yet) or if authorized active device
+          ".write": "auth != null && (!data.exists() || data.parent().child('devices').child(auth.uid).child('status').val() == 'Active')"
+        },
+
+        "devices": {
+          "$deviceId": {
+            // A device can view its own record or active devices can view all device statuses
+            ".read": "auth != null && ($deviceId == auth.uid || data.parent().child(auth.uid).child('status').val() == 'Active')",
+            // Prevent self-approval, self-reactivation, and self-promotion of roles
+            ".write": "auth != null && ( ( $deviceId == auth.uid && ( !data.exists() ? (newData.child('status').val() == 'Pending' && newData.child('role').val() == 'Nurse' || !data.parent().parent().child('info').exists()) : (data.child('status').val() == newData.child('status').val() && data.child('role').val() == newData.child('role').val() || (data.parent().child(auth.uid).child('status').val() == 'Active' && (data.parent().child(auth.uid).child('role').val() == 'Mother Account' || data.parent().child(auth.uid).child('role').val() == 'Admin' || data.parent().child(auth.uid).child('role').val() == 'GM'))))) || (data.parent().child(auth.uid).child('status').val() == 'Active' && (data.parent().child(auth.uid).child('role').val() == 'Mother Account' || data.parent().child(auth.uid).child('role').val() == 'Admin' || data.parent().child(auth.uid).child('role').val() == 'GM')) )"
+          }
+        },
+
+        "records": {
+          "$recordId": {
+            // --- Financial Audit Protection & Record Safeguards ---
+            // Allow active devices to read/write sync records
+            ".read": "auth != null && data.parent().parent().child('devices').child(auth.uid).child('status').val() == 'Active'",
+            // Disallow total hard-deletion of records to preserve the financial ledger and audit trail.
+            // Records must be soft-deleted by setting isDeleted = true.
+            ".write": "auth != null && data.parent().parent().child('devices').child(auth.uid).child('status').val() == 'Active' && newData.exists() && (!data.exists() || data.child('lastModifiedDeviceId').exists())"
+          }
+        }
+      }
+    }
+  }
+}

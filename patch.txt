@@ -1,0 +1,49 @@
+--- app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt
++++ app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt
+@@ -11,43 +11,36 @@
+ /**
+  * Handles administrative login securely using Supabase Auth.
+- * Strict business rule applied: No SMS OTP or Biometric locks.
+- * Optimized for management staff using standard organizational Email/Password authentication.
++ * Uses Anonymous Authentication with Connection IDs (Sync Codes) to maintain the existing frictionless workflow.
+  */
+ class SupabaseAuthRepository(
+     private val clientManager: SupabaseClientManager,
+     private val workspaceManager: WorkspaceManager
+ ) {
+     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+ 
+-    suspend fun loginWithEmail(email: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+-        val url = "${clientManager.supabaseUrl}/auth/v1/token?grant_type=password"
+-        val payload = mapOf("email" to email, "password" to password)
++    suspend fun signInAnonymously(tenantId: String, syncCode: String): AuthResult = withContext(Dispatchers.IO) {
++        val url = "${clientManager.supabaseUrl}/auth/v1/signup"
++        val payload = mapOf("data" to mapOf("tenant_id" to tenantId, "sync_code" to syncCode))
+         val json = moshi.adapter(Map::class.java).toJson(payload)
+         
+         // Note: OkHttp client from clientManager automatically injects the apikey via interceptor
+         val request = Request.Builder()
+             .url(url)
+             .post(json.toRequestBody(jsonMediaType))
+             .build()
+         
+         try {
+             clientManager.httpClient.newCall(request).execute().use { response ->
+                 val body = response.body?.string()
+                 if (response.isSuccessful && body != null) {
+                     val authMap = moshi.adapter(Map::class.java).fromJson(body) as? Map<String, Any>
+                     val accessToken = authMap?.get("access_token") as? String
+                     val userMap = authMap?.get("user") as? Map<String, Any>
+-                    val tenantId = userMap?.get("id") as? String
++                    val uid = userMap?.get("id") as? String
+                     
+-                    if (accessToken != null && tenantId != null) {
+-                        // Store access token securely in the WorkspaceManager DataStore
++                    if (accessToken != null && uid != null) {
+                         workspaceManager.saveIdentity(
+                             tenantId = tenantId,
+-                            syncCode = "ADMIN_SYNC_DEFAULT", // Or parse from user metadata
++                            syncCode = syncCode,
+                             authToken = accessToken
+                         )

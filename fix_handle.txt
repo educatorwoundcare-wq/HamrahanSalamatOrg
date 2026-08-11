@@ -1,0 +1,43 @@
+    fun handleDeepLink(screenTarget: String?) {
+        if (screenTarget == null) {
+            _currentDeepLink.value = null
+            _navigateToScreen.value = null
+            return
+        }
+
+        // Parse e.g. "employees?id=5&tab=documents&alertType=staff_profile_incomplete"
+        try {
+            val parts = screenTarget.split("?")
+            val screen = parts[0]
+            var entityId: Int? = null
+            var tab: String? = null
+            var alertType: String? = null
+
+            if (parts.size > 1) {
+                val queryParams = parts[1].split("&")
+                for (param in queryParams) {
+                    val pair = param.split("=")
+                    if (pair.size == 2) {
+                        val key = pair[0]
+                        val value = pair[1]
+                        when (key) {
+                            "id" -> entityId = value.toIntOrNull()
+                            "tab" -> tab = value
+                            "alertType" -> alertType = value
+                        }
+                    }
+                }
+            }
+
+            _currentDeepLink.value = ActiveDeepLink(
+                screen = screen,
+                entityId = entityId,
+                tab = tab,
+                alertType = alertType
+            )
+            // Trigger navigation to the top-level screen
+            _navigateToScreen.value = screen
+        } catch (e: Exception) {
+            Log.e("HamrahanViewModel", "Error parsing deep link", e)
+        }
+    }

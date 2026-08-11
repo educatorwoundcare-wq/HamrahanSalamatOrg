@@ -1,0 +1,4 @@
+
+    suspend fun exportDatabaseToJson(context: android.content.Context): Result<java.io.File> {
+        return com.example.ui.SettingsBackup.exportDatabaseToJson(context, repository.dao)
+    }

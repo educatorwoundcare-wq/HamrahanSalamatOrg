@@ -1,0 +1,44 @@
+
+    // --- Sync ---
+    val syncing = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val lastSyncTime = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val pendingChangesCount = kotlinx.coroutines.flow.MutableStateFlow(0)
+    fun setOnline(online: Boolean) {}
+    fun triggerSync() {}
+
+    // --- Backup ---
+    fun getBackupFilesList(): List<java.io.File> {
+        return com.example.data.BackupManager.getBackupsList(repository.context)
+    }
+    suspend fun exportBackupToUri(file: java.io.File, uri: android.net.Uri): Boolean {
+        return com.example.data.BackupManager.exportBackupToUri(repository.context, file, uri)
+    }
+    fun validateBackupFromUri(uri: android.net.Uri): com.example.data.ValidationResult {
+        return com.example.data.BackupManager.restoreBackupFromUri(repository.context, uri)
+    }
+    fun validateBackupFile(file: java.io.File): com.example.data.ValidationResult {
+        return com.example.data.BackupManager.validateBackupFile(repository.context, file)
+    }
+    fun backupDatabaseFile(): java.io.File? = null
+    fun deleteBackupFile(file: java.io.File) {
+        if(file.exists()) file.delete()
+    }
+    fun restoreData(data: String): String = "بازگردانی انجام شد"
+    suspend fun restoreDatabaseFile(file: java.io.File): Boolean = false
+    fun resetCompanyWorkspace() {}
+
+    // --- Expense Categories ---
+    fun saveExpenseCategory(category: com.example.data.ExpenseCategory) {
+        viewModelScope.launch {
+            repository.dao.insertExpenseCategory(category)
+        }
+    }
+    fun deleteExpenseCategory(category: com.example.data.ExpenseCategory) {
+        viewModelScope.launch {
+            repository.dao.deleteExpenseCategory(category)
+        }
+    }
+    fun mergeExpenseCategories(sourceId: Int, targetId: Int) {}
+
+    // --- Developer / Theme ---
+    fun toggleDarkMode() {}

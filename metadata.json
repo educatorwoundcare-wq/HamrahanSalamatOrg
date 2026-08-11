@@ -1,0 +1,8 @@
+{
+  "name": "مدیریت دفاتر خدمات پرستاری",
+  "description": "نرم‌افزار جامع مدیریت دفتر، حسابداری، ارتباط با مشتری و برنامه‌ریزی منابع سازمان (ERP) ویژه شرکت خدمات پرستاری در منزل همراهان سلامت",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

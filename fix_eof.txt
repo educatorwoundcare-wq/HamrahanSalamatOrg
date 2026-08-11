@@ -1,0 +1,50 @@
+        } catch (e: Exception) {
+            Log.e("HamrahanViewModel", "Error parsing deep link", e)
+        }
+    }
+
+    fun checkForUpdates(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("https://hamrahan-eb812-default-rtdb.firebaseio.com/config/update_config.json")
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        response.body?.string()?.let { jsonString ->
+                            val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+                            val adapter = moshi.adapter(UpdateConfig::class.java)
+                            val config = adapter.fromJson(jsonString)
+                            if (config != null) {
+                                withContext(Dispatchers.Main) {
+                                    _updateConfig.value = config
+                                    val currentVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionCode
+                                    if (config.minVersion > currentVersion || config.latestVersion > currentVersion) {
+                                        _showUpdateDialog.value = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("HamrahanViewModel", "Error checking for updates", e)
+            }
+        }
+    }
+
+    suspend fun exportDatabaseToJson(context: android.content.Context): Result<java.io.File> {
+        return com.example.ui.SettingsBackup.exportDatabaseToJson(context, repository.dao)
+    }
+}
+
+class HamrahanViewModelFactory(private val repository: HamrahanRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(HamrahanViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return HamrahanViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
