@@ -1,0 +1,23 @@
+PHASE:
+RECOVERY-FORENSIC-001
+
+FILES FOUND:
+None of the application source code files were found.
+- Found /app/applet/build.gradle.kts (Project level)
+- Found /app/applet/settings.gradle.kts (Project level)
+- Found /app/applet/.gradle (Gradle cache directory)
+- Found /app/applet/.gitignore
+
+SOURCE STATUS:
+The `app/` directory (containing `src/`, `AndroidManifest.xml`, Kotlin source files, resources, and the app-level `build.gradle.kts`) is completely missing. It was irreversibly deleted by an `rm -rf /app/applet/app/` command in a previous step.
+
+RECOVERY POSSIBILITY:
+ZERO.
+- Git: No `.git` repository exists in the project tree (`git status` returns fatal).
+- Archives: No backup archives (`*.zip`, `*.tar.gz`, `*.bak`) containing the source code were found in `/`, `~/`, `/workspace`, `/tmp`, `/root`, or `/app`.
+- Caches: No IDE local history or recoverable file caches exist in this environment.
+
+RECOMMENDED ACTION:
+The Android application source code cannot be recovered from this filesystem. The only available options are:
+1. Restore the project from an external backup or remote Git repository, if one was maintained outside of this container.
+2. Re-initialize the project structure and rebuild the application from scratch or from the AI's conversation history.

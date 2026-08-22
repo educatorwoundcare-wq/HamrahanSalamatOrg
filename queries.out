@@ -1,0 +1,37 @@
+┌────────────────────────────────┬───────────┐
+│ proname                        │ prosecdef │
+├────────────────────────────────┼───────────┤
+│ is_device_member_of_workspace  │ true      │
+│ prevent_device_self_elevation  │ true      │
+│ resolve_workspace_by_sync_code │ true      │
+│ set_workspace_creator          │ true      │
+└────────────────────────────────┴───────────┘
+┌───────────────────────────────────────┬───────────────────┐
+│ tgname                                │ table_name        │
+├───────────────────────────────────────┼───────────────────┤
+│ set_workspace_creator_trigger         │ workspaces        │
+│ prevent_device_self_elevation_trigger │ connected_devices │
+└───────────────────────────────────────┴───────────────────┘
+┌──────────────────────────────────────┬─────────┬───────────────────┐
+│ conname                              │ contype │ relname           │
+├──────────────────────────────────────┼─────────┼───────────────────┤
+│ workspaces_sync_code_key             │ u       │ workspaces        │
+│ connected_devices_company_device_key │ u       │ connected_devices │
+└──────────────────────────────────────┴─────────┴───────────────────┘
+┌───────────────────┬────────────────┐
+│ relname           │ relrowsecurity │
+├───────────────────┼────────────────┤
+│ connected_devices │ true           │
+│ workspaces        │ true           │
+└───────────────────┴────────────────┘
+┌───────────────────┬─────────────────────────────────────────────────────────────────┐
+│ tablename         │ policyname                                                      │
+├───────────────────┼─────────────────────────────────────────────────────────────────┤
+│ connected_devices │ Mother Account can delete devices                               │
+│ connected_devices │ Users can insert their own device                               │
+│ connected_devices │ Users can update their own device or Mother Account can update  │
+│ connected_devices │ Users can view devices in their workspace                       │
+│ workspaces        │ Authenticated users can insert workspaces                       │
+│ workspaces        │ Users can update their workspace                                │
+│ workspaces        │ Users can view their own workspace                              │
+└───────────────────┴─────────────────────────────────────────────────────────────────┘

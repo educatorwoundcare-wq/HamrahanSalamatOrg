@@ -10,8 +10,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -40,6 +43,9 @@ class SyncEngine @JvmOverloads constructor(
     private val _failedSyncCount = MutableStateFlow(0)
     val failedSyncCount: StateFlow<Int> = _failedSyncCount.asStateFlow()
 
+    private val pairingDialogsShown = mutableSetOf<String>()
+    val pairingApprovalEvents = MutableSharedFlow<ConnectedDevice>(extraBufferCapacity = 16)
+
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val syncMutex = Mutex()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -61,16 +67,16 @@ class SyncEngine @JvmOverloads constructor(
             while (isActive) {
                 kotlinx.coroutines.delay(currentRetryDelay)
                 if (_isOnline.value && !_syncing.value && isActive) {
-                    val companyId = dao.getSystemSettingByKey("company_id")
-                    if (companyId.isNullOrEmpty()) {
-                        Log.i("SyncEngine", "[Lifecycle] Detected cleared companyId during periodic check. Auto-shutting down to prevent leaks.")
-                        shutdown()
-                        return@launch
-                    }
-                    try {
-                        sync()
-                    } catch (e: Exception) {
-                        Log.e("SyncEngine", "Periodic real-time background sync error", e)
+                    val wm = WorkspaceManager.getInstance(context)
+                    val companyId = wm.currentTenantId ?: dao.getSystemSettingByKey("company_id")
+                    if (!companyId.isNullOrEmpty()) {
+                        try {
+                            sync()
+                        } catch (e: Exception) {
+                            Log.e("SyncEngine", "Periodic real-time background sync error", e)
+                        }
+                    } else {
+                        Log.d("SyncEngine", "[Lifecycle] No company_id configured yet. Connectivity monitoring remains ACTIVE while sync operations are skipped.")
                     }
                 }
             }
@@ -147,138 +153,85 @@ class SyncEngine @JvmOverloads constructor(
     }
 
     // Main Sync loop
-    private suspend fun sync() = withContext(Dispatchers.IO) {
+    suspend fun sync(): Boolean = withContext(Dispatchers.IO) {
         if (!syncMutex.tryLock()) {
             Log.d("SyncEngine", "Sync operation already in progress, skipping concurrent acquisition.")
-            return@withContext
+            return@withContext true
         }
+        var success = false
+        var syncCompanyId: String? = null
+        var syncDeviceId: String? = null
+        var syncAuthUid: String? = null
         try {
             _syncing.value = true
-            val companyId = dao.getSystemSettingByKey("company_id")
+            val wm = WorkspaceManager.getInstance(context)
+            val companyId = wm.currentTenantId ?: dao.getSystemSettingByKey("company_id")
+            syncCompanyId = companyId
+            val initialAuthUid = wm.currentAuthUid ?: wm.extractSubFromJwt(wm.currentAuthToken)
+            syncAuthUid = initialAuthUid
+            val syncCode = wm.currentSyncCode ?: dao.getSystemSettingByKey("company_sync_code")
+            Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$initialAuthUid localCompanyId=$companyId localSyncCode=$syncCode remoteCreatorUid=N/A decision=SYNC_ENGINE_STARTUP")
             if (companyId.isNullOrEmpty()) {
                 Log.w("SyncEngine", "[Sync Cycle] Sync aborted because company_id is missing. Workspace not configured.")
-                return@withContext
+                return@withContext true
             }
 
-            // 1. Fetch valid ID token if available (do not abort sync if unavailable, fallback to unauthenticated REST calls)
-            val idToken = try {
-                cloudClient.getValidIdToken()
-            } catch (e: Exception) {
-                Log.w("SyncEngine", "[Sync Cycle] Token fetch failed or unavailable, proceeding with standard REST sync: ${e.message}")
-                null
-            }
-
-            var activeDeviceId = dao.getSystemSettingByKey("active_device_id")
-            if (activeDeviceId.isNullOrEmpty()) {
-                activeDeviceId = "DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
-                dao.insertSystemSetting(SystemSetting("active_device_id", activeDeviceId))
-            }
-
-            val activeDeviceName = dao.getSystemSettingByKey("active_device_name") ?: "تلفن همراه"
-            var localRole = dao.getSystemSettingByKey("active_device_role") ?: "General Manager"
-            var localStatus = dao.getSystemSettingByKey("active_device_status") ?: "Active"
-            val isDeviceApprovedLocally = dao.getSystemSettingByKey("device_has_been_approved") == "true"
-
-            if (localRole == "Mother Account" || isDeviceApprovedLocally) {
-                localStatus = "Active"
-                dao.insertSystemSetting(SystemSetting("active_device_status", "Active"))
-                dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
-            }
-
-            Log.i("SyncEngine", "[Sync Cycle] Starting sync cycle. companyId used: $companyId, activeDeviceId: $activeDeviceId")
-
-            // --- 1. REGISTRATION SYNC PIPELINE ---
-            // Fetch current device's authoritative state from Firebase first using ID Token
-            val cloudSelf = try {
-                cloudClient.getSingleDevice(companyId, activeDeviceId)
-            } catch (e: Exception) {
-                Log.e("SyncEngine", "[Registration Sync] Failed to poll device status from Firebase", e)
-                null
-            }
-
-            var activeDeviceRole = localRole
-            var activeDeviceStatus = localStatus
-
-            if (cloudSelf != null) {
-                activeDeviceRole = cloudSelf.role
-                activeDeviceStatus = cloudSelf.status
-                if (cloudSelf.status == "Active") {
-                    dao.insertSystemSetting(SystemSetting("active_device_status", "Active"))
-                    dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
+            val activeDeviceId = dao.getSystemSettingByKey("active_device_id")
+                ?: ("DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()).also {
+                    dao.insertSystemSetting(SystemSetting("active_device_id", it))
                 }
-            } else {
-                // Cloud fetch failed or device not on cloud yet.
-                // Maintain previous local authorization state to prevent false downgrades!
-                if (isDeviceApprovedLocally || localStatus == "Active") {
-                    activeDeviceStatus = "Active"
-                }
-            }
+            syncDeviceId = activeDeviceId
+            val localStatus = dao.getSystemSettingByKey("active_device_status") ?: "Pending"
 
-            // Explicit Self-Approval Override for Mother Account or locally approved device
-            if (localRole == "Mother Account" || cloudSelf?.role == "Mother Account" || cloudSelf?.status == "Active" || isDeviceApprovedLocally) {
-                activeDeviceStatus = "Active"
-            }
-
-            // Always sync and persist authoritative role and status locally
-            dao.insertSystemSetting(SystemSetting("active_device_role", activeDeviceRole))
-            dao.insertSystemSetting(SystemSetting("active_device_status", activeDeviceStatus))
-            if (activeDeviceStatus == "Active") {
-                dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
-            }
-
-            val existingLocalDev = dao.getConnectedDeviceById(activeDeviceId)
-            val sendRole = if (activeDeviceStatus == "Pending") "Nurse" else activeDeviceRole
-            // Heartbeat metadata representation for cloud update
-            val currentDevice = ConnectedDevice(
-                deviceId = activeDeviceId,
-                deviceName = activeDeviceName,
-                deviceType = if (activeDeviceName.contains("تبلت")) "Tablet" else "Phone",
-                appVersion = "v2.0.0",
-                lastOnlineTime = System.currentTimeMillis(),
-                lastSuccessfulSync = existingLocalDev?.lastSuccessfulSync ?: 0L,
-                status = activeDeviceStatus,
-                uid = activeDeviceId,
-                role = sendRole,
-                lastSeen = System.currentTimeMillis(),
+            // Canonical Bootstrap Orchestration (R24/R25)
+            val bootstrapResult = cloudClient.ensureCanonicalCloudBootstrap(
                 companyId = companyId,
-                requestedRole = existingLocalDev?.requestedRole ?: activeDeviceRole
+                syncCode = syncCode,
+                forcedDeviceId = activeDeviceId
             )
 
-            // Persist locally
-            dao.insertConnectedDevice(currentDevice)
-
-            val updateType = if (cloudSelf == null && localStatus == "Pending" && !isDeviceApprovedLocally) "FULL_REGISTER" else "HEARTBEAT_ONLY"
-            Log.i("SyncEngine", "[DEVICE SYNC]\nid=$activeDeviceId\nlocal=$localStatus\nremote=${cloudSelf?.status ?: "UNKNOWN"}\naction=$updateType")
-
-            // Registration/heartbeat upload to the cloud
-            try {
-                if (updateType == "FULL_REGISTER") {
-                    Log.i("SyncEngine", "[UPLOAD]\n\nFirebase path=companies/$companyId/devices/$activeDeviceId (Initial Register)")
-                    val success = cloudClient.registerDevice(companyId, currentDevice)
-                    if (success) {
-                        Log.i("SyncEngine", "[Registration Sync] Successfully registered device in cloud.")
-                    } else {
-                        Log.w("SyncEngine", "[Registration Sync] Failed to register device in cloud.")
+            if (bootstrapResult !is BootstrapResult.SyncAllowed) {
+                when (bootstrapResult) {
+                    is BootstrapResult.PendingApproval -> {
+                        Log.w("SYNC_GATE_BLOCKED", "[SYNC_GATE_BLOCKED] companyId=$companyId deviceId=$activeDeviceId deviceStatus=Pending allowed=false reason=DEVICE_PENDING_APPROVAL")
+                        dao.insertSystemSetting(SystemSetting("active_device_status", "Pending"))
+                        dao.insertSystemSetting(SystemSetting("device_has_been_approved", "false"))
                     }
-                } else {
-                    Log.i("SyncEngine", "[UPLOAD]\n\nFirebase path=companies/$companyId/devices/$activeDeviceId (Heartbeat PATCH)")
-                    val success = cloudClient.patchDeviceHeartbeat(companyId, currentDevice)
-                    if (success) {
-                        Log.i("SyncEngine", "[Registration Sync] Successfully updated registration heartbeat in cloud.")
-                    } else {
-                        Log.w("SyncEngine", "[Registration Sync] Failed to heartbeat in cloud.")
+                    is BootstrapResult.IdentityRecoveryRequired -> {
+                        Log.w("SYNC_GATE_BLOCKED", "[SYNC_GATE_BLOCKED] companyId=$companyId deviceId=$activeDeviceId allowed=false reason=IDENTITY_RECOVERY_REQUIRED (${bootstrapResult.reason})")
                     }
+                    is BootstrapResult.Blocked -> {
+                        Log.w("SYNC_GATE_BLOCKED", "[SYNC_GATE_BLOCKED] companyId=$companyId deviceId=$activeDeviceId allowed=false reason=BLOCKED_${bootstrapResult.reason}")
+                    }
+                    is BootstrapResult.Error -> {
+                        Log.e("SYNC_GATE_BLOCKED", "[SYNC_GATE_BLOCKED] companyId=$companyId deviceId=$activeDeviceId allowed=false reason=ERROR_${bootstrapResult.message}", bootstrapResult.exception)
+                    }
+                    else -> {}
                 }
-            } catch (e: Exception) {
-                Log.e("SyncEngine", "[Registration Sync] Error sending registration heartbeat", e)
+                return@withContext true
             }
+
+            val confirmedDevice = bootstrapResult.device
+            val confirmedWorkspace = bootstrapResult.workspace
+            val confirmedAuthUid = bootstrapResult.authUid
+            val activeDeviceRole = confirmedDevice.role
+            val activeDeviceStatus = confirmedDevice.status
+
+            // Sync and persist authoritative role and status locally
+            dao.insertSystemSetting(SystemSetting("active_device_role", activeDeviceRole))
+            dao.insertSystemSetting(SystemSetting("active_device_status", activeDeviceStatus))
+            dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
+            dao.insertConnectedDevice(confirmedDevice)
 
             // Administrative Registration Sync: approved administrators poll other device metadata/join requests
             if (activeDeviceStatus == "Active" && (activeDeviceRole == "Mother Account" || activeDeviceRole == "Admin" || activeDeviceRole == "GM" || activeDeviceRole == "General Manager")) {
                 try {
                     val cloudDevices = cloudClient.getConnectedDevices(companyId)
+                    val pendingRequestsCount = cloudDevices.count { it.status == "Pending" }
+                    Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [DISCOVERY] companyId=$companyId remoteCount=${cloudDevices.size} pendingCount=$pendingRequestsCount deviceIds=${cloudDevices.map { it.deviceId }}")
                     for (dev in cloudDevices) {
                         dao.insertConnectedDevice(dev)
+                        Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [ROOM_INSERT] deviceId=${dev.deviceId} companyId=${dev.companyId} status=${dev.status} role=${dev.role}")
                         if (dev.status == "Pending") {
                             val existingAlerts = dao.getAlertsList()
                             val hasAlert = existingAlerts.any { it.entityId == dev.deviceId && it.status == "PENDING" }
@@ -295,9 +248,17 @@ class SyncEngine @JvmOverloads constructor(
                                     )
                                 )
                             }
+                            if (pairingDialogsShown.add(dev.deviceId)) {
+                                Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Pending pairing detected deviceId=${dev.deviceId}")
+                                Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Event emitted deviceId=${dev.deviceId}")
+                                pairingApprovalEvents.tryEmit(dev)
+                            } else {
+                                Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Duplicate event suppressed deviceId=${dev.deviceId}")
+                            }
+                        } else {
+                            pairingDialogsShown.remove(dev.deviceId)
                         }
                     }
-                    val pendingRequestsCount = cloudDevices.count { it.status == "Pending" }
                     Log.i("SyncEngine", "[DOWNLOAD]\n\nPending requests found=$pendingRequestsCount")
                     Log.i("SyncEngine", "[ADMIN]\n\nRequests received=${cloudDevices.size}")
                     Log.i("SyncEngine", "[Registration Sync] Successfully pulled connected devices list. Total count: ${cloudDevices.size}, Pending: $pendingRequestsCount")
@@ -307,13 +268,13 @@ class SyncEngine @JvmOverloads constructor(
             }
 
             // --- 2. BUSINESS DATA SYNC PIPELINE ---
-            // Business sync is blocked entirely unless cloud confirms that the device status is Active
-            if (activeDeviceStatus != "Active") {
-                Log.w("SyncEngine", "[Sync Cycle] Business sync pipeline is BLOCKED. Device status is $activeDeviceStatus")
-                return@withContext
+            val syncAuthCheck = cloudClient.canSyncBusinessData(companyId, activeDeviceId)
+            if (!syncAuthCheck.allowed) {
+                Log.w("SYNC_GATE_BLOCKED", "[SYNC_GATE_BLOCKED] Business sync blocked. Reason: ${syncAuthCheck.reason}")
+                return@withContext true
             }
 
-            Log.i("SyncEngine", "[Business Sync] Device is Active. Running business synchronization pipeline.")
+            Log.i("SyncEngine", "[Business Sync] Canonical bootstrap confirmed Active. Running business synchronization pipeline.")
 
             // --- APPROVAL FULL SNAPSHOT PIPELINE ---
             val wasPending = localStatus == "Pending" || dao.getSystemSettingByKey("full_snapshot_needed_$companyId") == "true"
@@ -369,7 +330,12 @@ class SyncEngine @JvmOverloads constructor(
                 }
             }
 
-            // 2. Upload pending local changes to the Real Cloud Database
+            // 2. Upload pending local changes to the Real Cloud Database (Only for Active devices)
+            if (activeDeviceStatus != "Active") {
+                Log.i("SyncEngine", "[Business Sync] Skipping cloud record upload/download because device status is '$activeDeviceStatus' (must be 'Active')")
+                return@withContext true
+            }
+
             val pendingMetadata = dao.getPendingSyncMetadata()
             if (pendingMetadata.isNotEmpty()) {
                 Log.i("SyncEngine", "[Sync Cycle] Found ${pendingMetadata.size} pending local changes to upload for company $companyId")
@@ -460,9 +426,11 @@ class SyncEngine @JvmOverloads constructor(
             currentRetryDelay = minRetryDelay // Reset backoff on success!
             
             // Also update last sync time in active device in cloud and local
-            val updatedDevice = currentDevice.copy(lastSuccessfulSync = System.currentTimeMillis())
+            val updatedDevice = confirmedDevice.copy(lastSuccessfulSync = System.currentTimeMillis())
             dao.insertConnectedDevice(updatedDevice)
             cloudClient.patchDeviceHeartbeat(companyId, updatedDevice)
+            success = true
+            Log.i("SYNC", "[SYNC] companyId=$companyId deviceId=$activeDeviceId authUid=$confirmedAuthUid result=SUCCESS")
 
         } catch (e: Exception) {
             Log.e("SyncEngine", "Sync error: ${e.localizedMessage}", e)
@@ -475,10 +443,13 @@ class SyncEngine @JvmOverloads constructor(
                 currentRetryDelay = (currentRetryDelay * 1.5).toLong().coerceAtMost(maxRetryDelay)
                 Log.w("SyncEngine", "[Backoff] Network issue detected. Increasing sync interval to $currentRetryDelay ms.")
             }
+            success = false
+            Log.e("SYNC", "[SYNC] companyId=${syncCompanyId ?: "NULL"} deviceId=${syncDeviceId ?: "NULL"} authUid=${syncAuthUid ?: "NULL"} result=FAILED")
         } finally {
             _syncing.value = false
             syncMutex.unlock()
         }
+        return@withContext success
     }
 
     // Helper to fetch local database record as JSON
@@ -597,18 +568,22 @@ class SyncEngine @JvmOverloads constructor(
 
         try {
             val obj = SyncSerializer.deserialize(cloudRec.entityType, cloudRec.dataJson)
-            insertOrUpdateLocalRecord(cloudRec.entityType, cloudRec.entityId, obj)
+            if (obj != null) {
+                insertOrUpdateLocalRecord(cloudRec.entityType, cloudRec.entityId, obj)
 
-            dao.insertSyncMetadata(
-                SyncMetadata(
-                    entityType = cloudRec.entityType,
-                    entityId = cloudRec.entityId,
-                    updatedTimestamp = cloudRec.updatedTimestamp,
-                    deletedStatus = false,
-                    lastModifiedDeviceId = cloudRec.lastModifiedDeviceId,
-                    syncStatus = "Synced"
+                dao.insertSyncMetadata(
+                    SyncMetadata(
+                        entityType = cloudRec.entityType,
+                        entityId = cloudRec.entityId,
+                        updatedTimestamp = cloudRec.updatedTimestamp,
+                        deletedStatus = false,
+                        lastModifiedDeviceId = cloudRec.lastModifiedDeviceId,
+                        syncStatus = "Synced"
+                    )
                 )
-            )
+            } else {
+                Log.e("SyncEngine", "Deserialized object is null for entity: ${cloudRec.entityType}_${cloudRec.entityId}")
+            }
         } catch (e: Exception) {
             Log.e("SyncEngine", "Failed to deserialize cloud record: ${cloudRec.entityType}_${cloudRec.entityId}", e)
         }

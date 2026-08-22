@@ -2,6 +2,7 @@ package com.example
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -59,6 +60,11 @@ class HamrahanApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        try {
+            com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false)
+        } catch (_: Exception) {
+            // Firebase or Crashlytics not initialized
+        }
         Thread.setDefaultUncaughtExceptionHandler(CrashHandler(this))
         container = AppContainer(this)
         
@@ -66,19 +72,23 @@ class HamrahanApplication : Application() {
     }
     
     private fun setupBackgroundSync() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-            
-        val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-            
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "HamrahanBackgroundSync",
-            ExistingPeriodicWorkPolicy.KEEP,
-            syncRequest
-        )
+        try {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+                
+            val syncRequest = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build()
+                
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "HamrahanBackgroundSync",
+                ExistingPeriodicWorkPolicy.KEEP,
+                syncRequest
+            )
+        } catch (e: Exception) {
+            Log.e("HamrahanApp", "WorkManager background sync setup failed", e)
+        }
     }
 
     companion object {

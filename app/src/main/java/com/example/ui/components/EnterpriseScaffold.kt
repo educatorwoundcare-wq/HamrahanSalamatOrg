@@ -98,6 +98,7 @@ fun EnterpriseScaffold(
     currentScreen: HamrahanScreen,
     onScreenSelected: (HamrahanScreen) -> Unit,
     companyName: String,
+    isOnline: Boolean = true,
     syncing: Boolean,
     lastSyncTime: Long,
     userRole: String,
@@ -128,6 +129,7 @@ fun EnterpriseScaffold(
                         EnterpriseTopAppBar(
                             currentScreen = currentScreen,
                             companyName = companyName,
+                            isOnline = isOnline,
                             syncing = syncing,
                             lastSyncTime = lastSyncTime,
                             userRole = userRole,
@@ -169,6 +171,7 @@ fun EnterpriseScaffold(
                         EnterpriseTopAppBar(
                             currentScreen = currentScreen,
                             companyName = companyName,
+                            isOnline = isOnline,
                             syncing = syncing,
                             lastSyncTime = lastSyncTime,
                             userRole = userRole,
@@ -206,6 +209,7 @@ fun EnterpriseScaffold(
 fun EnterpriseTopAppBar(
     currentScreen: HamrahanScreen,
     companyName: String,
+    isOnline: Boolean = true,
     syncing: Boolean,
     lastSyncTime: Long,
     userRole: String,
@@ -270,6 +274,7 @@ fun EnterpriseTopAppBar(
                 ) {
                     // Sync Status Indicator Badge
                     EnterpriseSyncStatusBadge(
+                        isOnline = isOnline,
                         syncing = syncing,
                         lastSyncTime = lastSyncTime,
                         onClick = onSyncClick
@@ -311,6 +316,7 @@ fun EnterpriseTopAppBar(
  */
 @Composable
 fun EnterpriseSyncStatusBadge(
+    isOnline: Boolean = true,
     syncing: Boolean,
     lastSyncTime: Long,
     onClick: () -> Unit
@@ -318,6 +324,11 @@ fun EnterpriseSyncStatusBadge(
     val enterpriseColors = LocalEnterpriseColors.current
 
     val (badgeBg, badgeFg, label) = when {
+        !isOnline -> Triple(
+            enterpriseColors.syncPending.copy(alpha = 0.12f),
+            enterpriseColors.syncPending,
+            "آفلاین"
+        )
         syncing -> Triple(
             enterpriseColors.syncSyncing.copy(alpha = 0.12f),
             enterpriseColors.syncSyncing,
@@ -329,9 +340,9 @@ fun EnterpriseSyncStatusBadge(
             "همگام‌سازی فعال"
         )
         else -> Triple(
-            enterpriseColors.syncPending.copy(alpha = 0.12f),
-            enterpriseColors.syncPending,
-            "آفلاین"
+            enterpriseColors.syncSynced.copy(alpha = 0.12f),
+            enterpriseColors.syncSynced,
+            "آنلاین"
         )
     }
 

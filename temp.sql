@@ -1,0 +1,1 @@
+SELECT status FROM public.connected_devices WHERE device_id = 'DEV_STAFF_A'

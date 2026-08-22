@@ -643,8 +643,10 @@ fun ReportScreen(viewModel: HamrahanViewModel) {
 
     // Restore Confirmation Dialog with SHA-256 and Metadata Verification
     if (showRestoreConfirmDialog && restoreValidationSuccess != null) {
-        val meta = restoreValidationSuccess!!.metadata
-        val restoreFile = restoreValidationSuccess!!.tempBackupFile
+        val successVal = restoreValidationSuccess
+        if (successVal != null) {
+            val meta = successVal.metadata
+            val restoreFile = successVal.tempBackupFile
 
         Dialog(onDismissRequest = { showRestoreConfirmDialog = false }) {
             Card(
@@ -741,6 +743,7 @@ fun ReportScreen(viewModel: HamrahanViewModel) {
             }
         }
     }
+}
 }
 
 // --- CANVAS DONUT CHART FOR TOP SERVICES ---

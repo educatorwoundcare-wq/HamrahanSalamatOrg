@@ -2,6 +2,8 @@ package com.example.data
 
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import com.example.ui.formatDate
@@ -29,6 +31,9 @@ class HamrahanRepository @JvmOverloads constructor(
         dao.insertSyncMetadata(meta)
         syncEngine?.triggerSync()
     }
+
+    val pairingApprovalEvents: SharedFlow<ConnectedDevice>
+        get() = syncEngine?.pairingApprovalEvents ?: MutableSharedFlow()
     // Expose all flows directly from DAO
     val allPatients: Flow<List<Patient>> = dao.getAllPatients()
     val allEmployees: Flow<List<Employee>> = dao.getAllEmployees()
@@ -242,6 +247,10 @@ class HamrahanRepository @JvmOverloads constructor(
 
             purgeAllLocalOfflineDevices()
             
+            val workspaceManager = WorkspaceManager.getInstance(context)
+            val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken) ?: ""
+            android.util.Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId= localSyncCode= remoteCreatorUid=N/A decision=CHECK_AND_PREPOPULATE_INITIAL")
+
             val selfDevice = ConnectedDevice(
                 deviceId = localDevId,
                 deviceName = "تلفن من",
@@ -250,7 +259,7 @@ class HamrahanRepository @JvmOverloads constructor(
                 lastOnlineTime = System.currentTimeMillis(),
                 lastSuccessfulSync = System.currentTimeMillis(),
                 status = "Active",
-                uid = localDevId,
+                uid = authUid,
                 role = "Mother Account",
                 lastSeen = System.currentTimeMillis(),
                 companyId = "",
@@ -284,6 +293,12 @@ class HamrahanRepository @JvmOverloads constructor(
         val activeDeviceId = dao.getSystemSettingByKey("active_device_id")
         if (!activeDeviceId.isNullOrEmpty()) {
             val existingDev = dao.getConnectedDeviceById(activeDeviceId)
+            val workspaceManager = WorkspaceManager.getInstance(context)
+            var authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken) ?: ""
+            if (authUid.isBlank() && existingDev != null && existingDev.uid.isNotBlank() && existingDev.uid != activeDeviceId && !existingDev.uid.startsWith("DEV-")) {
+                authUid = existingDev.uid
+            }
+
             val updatedDev = ConnectedDevice(
                 deviceId = activeDeviceId,
                 deviceName = existingDev?.deviceName ?: dao.getSystemSettingByKey("active_device_name") ?: "تلفن مدیرعامل (سرپرست مرکز)",
@@ -292,7 +307,7 @@ class HamrahanRepository @JvmOverloads constructor(
                 lastOnlineTime = System.currentTimeMillis(),
                 lastSuccessfulSync = existingDev?.lastSuccessfulSync ?: System.currentTimeMillis(),
                 status = "Active",
-                uid = activeDeviceId,
+                uid = authUid,
                 role = "Mother Account",
                 lastSeen = System.currentTimeMillis(),
                 companyId = dao.getSystemSettingByKey("company_id") ?: "COMP-LOCAL",
@@ -314,6 +329,16 @@ class HamrahanRepository @JvmOverloads constructor(
         }
     }
 
+    suspend fun clearStaleWorkspaceIdentity() {
+        // Clear only stale workspace identity metadata without wiping user-created operational data
+        dao.insertSystemSetting(SystemSetting("company_is_setup", "false"))
+        dao.insertSystemSetting(SystemSetting("company_id", ""))
+        dao.insertSystemSetting(SystemSetting("company_sync_code", ""))
+        val workspaceManager = WorkspaceManager.getInstance(context)
+        workspaceManager.clearWorkspaceTenantOnly()
+        android.util.Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] Stale local workspace metadata cleared while operational data preserved.")
+    }
+
     suspend fun resetCompanyWorkspace() {
         // Reset system settings to unlock local device and allow creating/joining workspace
         dao.insertSystemSetting(SystemSetting("company_is_setup", "false"))
@@ -332,6 +357,9 @@ class HamrahanRepository @JvmOverloads constructor(
         // Delete ALL connected device records from Room to wipe old offline local accounts
         dao.deleteAllConnectedDevices()
 
+        val workspaceManager = WorkspaceManager.getInstance(context)
+        val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken) ?: ""
+
         val selfDevice = ConnectedDevice(
             deviceId = devId,
             deviceName = "تلفن مدیرعامل (سرپرست مرکز)",
@@ -340,7 +368,7 @@ class HamrahanRepository @JvmOverloads constructor(
             lastOnlineTime = System.currentTimeMillis(),
             lastSuccessfulSync = System.currentTimeMillis(),
             status = "Active",
-            uid = devId,
+            uid = authUid,
             role = "Mother Account",
             lastSeen = System.currentTimeMillis(),
             companyId = "",
@@ -413,49 +441,70 @@ class HamrahanRepository @JvmOverloads constructor(
 
     // --- Patient Operations ---
     suspend fun insertPatient(patient: Patient): Long {
-        val id = dao.insertPatient(patient)
-        registerLocalChange("Patient", patient.uuid)
+        var id = 0L
+        dao.runInTransaction {
+            id = dao.insertPatient(patient)
+            registerLocalChange("Patient", patient.uuid)
+        }
         return id
     }
     suspend fun updatePatient(patient: Patient) {
-        dao.updatePatient(patient)
-        registerLocalChange("Patient", patient.uuid)
+        dao.runInTransaction {
+            dao.updatePatient(patient)
+            registerLocalChange("Patient", patient.uuid)
+        }
     }
     suspend fun deletePatient(patient: Patient) {
-        dao.deletePatient(patient)
-        registerLocalChange("Patient", patient.uuid, isDeleted = true)
+        dao.runInTransaction {
+            dao.deletePatient(patient)
+            registerLocalChange("Patient", patient.uuid, isDeleted = true)
+        }
     }
     suspend fun getPatientById(id: Int): Patient? = dao.getPatientById(id)
 
     // --- Employee Operations ---
     suspend fun insertEmployee(employee: Employee): Long {
-        val id = dao.insertEmployee(employee)
-        registerLocalChange("Employee", employee.uuid)
+        var id = 0L
+        dao.runInTransaction {
+            id = dao.insertEmployee(employee)
+            registerLocalChange("Employee", employee.uuid)
+        }
         return id
     }
     suspend fun updateEmployee(employee: Employee) {
-        dao.updateEmployee(employee)
-        registerLocalChange("Employee", employee.uuid)
+        dao.runInTransaction {
+            dao.updateEmployee(employee)
+            registerLocalChange("Employee", employee.uuid)
+        }
     }
     suspend fun deleteEmployee(employee: Employee) {
-        dao.deleteEmployee(employee)
-        registerLocalChange("Employee", employee.uuid, isDeleted = true)
+        dao.runInTransaction {
+            dao.deleteEmployee(employee)
+            registerLocalChange("Employee", employee.uuid, isDeleted = true)
+        }
     }
     suspend fun getEmployeeById(id: Int): Employee? = dao.getEmployeeById(id)
 
     // --- Service Operations ---
     suspend fun insertService(service: Service): Long {
-        val id = dao.insertService(service)
-        registerLocalChange("Service", service.uuid)
+        var id = 0L
+        dao.runInTransaction {
+            id = dao.insertService(service)
+            registerLocalChange("Service", service.uuid)
+        }
         return id
     }
     suspend fun updateService(service: Service) {
-        dao.updateService(service)
-        registerLocalChange("Service", service.uuid)
+        dao.runInTransaction {
+            dao.updateService(service)
+            registerLocalChange("Service", service.uuid)
+        }
     }
     suspend fun deleteService(service: Service) {
-        dao.deleteService(service)
-        registerLocalChange("Service", service.uuid, isDeleted = true)
+        dao.runInTransaction {
+            dao.deleteService(service)
+            registerLocalChange("Service", service.uuid, isDeleted = true)
+        }
     }
     suspend fun getServiceById(id: Int): Service? = dao.getServiceById(id)
 

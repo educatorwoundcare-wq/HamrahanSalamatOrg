@@ -784,58 +784,20 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                     val pendingDevices = connectedDevices.filter { it.status == "Pending" }
-                    if (pendingDevices.isNotEmpty()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-                                    Text(
-                                        "درخواست جدید جهت اتصال دستگاه (${pendingDevices.size} مورد)",
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onTertiaryContainer
-                                    )
-                                }
-                                Text(
-                                    "دستگاه‌های زیر با کد همگام‌سازی مرکز متصل شده‌اند و منتظر تایید دسترسی مدیر هستند:",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onTertiaryContainer
-                                )
-                                pendingDevices.forEach { dev ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                                            .padding(8.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(dev.deviceName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
-                                            Text("شناسه: ${dev.deviceId}", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                                        }
-                                        Button(
-                                            onClick = {
-                                                viewModel.approveDeviceAccess(dev.deviceId)
-                                                snackbarMessage = "دسترسی دستگاه «${dev.deviceName}» با موفقیت تایید شد."
-                                                showSuccessSnackbar = true
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                            modifier = Modifier.testTag("approve_btn_${dev.deviceId}")
-                                        ) {
-                                            Text("تایید دسترسی", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    com.example.ui.components.PairingRequestsSection(
+                        pendingDevices = pendingDevices,
+                        onApprove = { dev ->
+                            viewModel.approveDeviceAccess(dev.deviceId)
+                            snackbarMessage = "دسترسی دستگاه «${dev.deviceName}» با موفقیت تایید شد."
+                            showSuccessSnackbar = true
+                        },
+                        onReject = { dev ->
+                            viewModel.rejectDeviceAccess(dev.deviceId)
+                            snackbarMessage = "درخواست دستگاه «${dev.deviceName}» رد شد."
+                            showSuccessSnackbar = true
+                        },
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
 
                     if (connectedDevices.isEmpty()) {
                         Text(
@@ -1309,8 +1271,7 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
     }
 
     // --- DIALOG: RENAME DEVICE ---
-    if (renameDeviceTarget != null) {
-        val target = renameDeviceTarget!!
+    renameDeviceTarget?.let { target ->
         Dialog(onDismissRequest = { renameDeviceTarget = null }) {
             Card(
                 shape = RoundedCornerShape(16.dp),

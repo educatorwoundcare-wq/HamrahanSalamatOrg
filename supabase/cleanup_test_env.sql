@@ -1,0 +1,2 @@
+DELETE FROM connected_devices WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');
+DELETE FROM workspaces WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');

@@ -4,15 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.example.data.auth.SessionManager
+import com.example.data.supabase.SupabaseClientManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +21,7 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Production-Ready Offline-First Sync Architecture
  * Implements: Clock Skew Management, Pagination/Chunking, Hybrid Triggering (FCM + Resume).
+ * Uses canonical SupabaseClientManager transport and strictly enforces requireAuthenticatedMutationContext.
  */
 class OfflineFirstSyncManager(
     private val context: Context,
@@ -31,6 +31,22 @@ class OfflineFirstSyncManager(
     private val prefs: SharedPreferences = context.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
     private val syncMutex = Mutex()
     
+    private val workspaceManager: WorkspaceManager by lazy {
+        WorkspaceManager.getInstance(context)
+    }
+
+    private val supabaseManager: SupabaseClientManager by lazy {
+        SupabaseClientManager(workspaceManager)
+    }
+
+    private val cloudClient: CloudClient by lazy {
+        CloudClient(dao, context, sessionManager)
+    }
+
+    private val client by lazy {
+        supabaseManager.httpClient
+    }
+    
     private val moshi = Moshi.Builder()
         .addLast(KotlinJsonAdapterFactory())
         .build()
@@ -38,11 +54,6 @@ class OfflineFirstSyncManager(
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
     private val syncRequestAdapter = moshi.adapter(SyncRequest::class.java)
     private val syncResponseAdapter = moshi.adapter(SyncResponse::class.java)
-    
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
 
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
@@ -68,6 +79,19 @@ class OfflineFirstSyncManager(
     suspend fun performDeltaSync(workspaceId: String, deviceId: String) = withContext(Dispatchers.IO) {
         if (_isSyncing.value) return@withContext
         
+        // Enforce hard canonical mutation gate BEFORE any network or sync operation
+        val authContext = cloudClient.requireAuthenticatedMutationContext(
+            operation = "OFFLINE_FIRST_DELTA_SYNC",
+            companyId = workspaceId,
+            deviceId = deviceId,
+            requireActiveDevice = true
+        )
+
+        if (!authContext.allowed) {
+            Log.w("MUTATION_BLOCKED", "[MUTATION_BLOCKED]\noperation=OFFLINE_FIRST_DELTA_SYNC\nreason=${authContext.reason}")
+            return@withContext
+        }
+
         syncMutex.withLock {
             _isSyncing.value = true
             try {
@@ -77,7 +101,6 @@ class OfflineFirstSyncManager(
                 // Keep pulling until server has_more = false
                 while (hasMore) {
                     // Gather Local Push Data (Changes made offline after last_sync_at)
-                    // In a complete implementation, this queries local records with updatedAt > last_sync_at
                     val pushData = gatherPushData()
                     
                     val requestPayload = SyncRequest(
@@ -90,18 +113,19 @@ class OfflineFirstSyncManager(
                     
                     val requestJson = syncRequestAdapter.toJson(requestPayload)
                     
-                    // Endpoint provided by architecture
-                    val apiUrl = "https://api.hamrahan.com/v1/sync" // Replace with actual backend URL
+                    val apiUrl = "${supabaseManager.supabaseUrl}/rest/v1/sync"
                     val request = Request.Builder()
                         .url(apiUrl)
                         .post(requestJson.toRequestBody(jsonMediaType))
-                        .addHeader("Authorization", "Bearer ${sessionManager.getValidIdToken() ?: ""}")
                         .build()
                         
                     Log.i("OfflineSync", "Executing Delta Sync. lastSyncAt=$lastSyncAt, pushItems=${pushData?.patients?.size ?: 0}")
                         
                     client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
+                        val isSuccess = response.isSuccessful
+                        Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=OFFLINE_FIRST_DELTA_SYNC\nhttpCode=${response.code}\nsuccess=$isSuccess")
+
+                        if (!isSuccess) {
                             Log.e("OfflineSync", "Sync failed with HTTP ${response.code}: ${response.message}")
                             hasMore = false
                             return@use
@@ -132,18 +156,16 @@ class OfflineFirstSyncManager(
                             hasMore = false
                         }
                     }
-                    
-                    // Break early if we only want to push once and just loop pull. 
-                    // Actually, if we pushed once, next loop should have push_data = null to save bandwidth.
-                    // (Omitted here for brevity, gatherPushData can return null if already pushed)
                 }
             } catch (e: Exception) {
                 Log.e("OfflineSync", "Error during Delta Sync: ${e.message}", e)
+                Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=OFFLINE_FIRST_DELTA_SYNC\nhttpCode=0\nsuccess=false")
             } finally {
                 _isSyncing.value = false
             }
         }
     }
+
     
     private suspend fun gatherPushData(): PushData? {
         // Mocking push data fetch using the architecture pattern.

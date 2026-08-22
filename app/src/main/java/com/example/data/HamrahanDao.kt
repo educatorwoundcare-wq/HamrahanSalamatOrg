@@ -332,7 +332,7 @@ interface HamrahanDao {
     @Query("SELECT * FROM sync_metadata")
     fun getAllSyncMetadata(): Flow<List<SyncMetadata>>
 
-    @Query("SELECT * FROM sync_metadata WHERE syncStatus = 'Pending' OR syncStatus = 'Failed'")
+    @Query("SELECT * FROM sync_metadata WHERE syncStatus = 'Pending' OR syncStatus = 'Failed' ORDER BY updatedTimestamp ASC")
     suspend fun getPendingSyncMetadata(): List<SyncMetadata>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

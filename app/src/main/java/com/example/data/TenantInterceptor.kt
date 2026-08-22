@@ -5,13 +5,21 @@ import okhttp3.Response
 
 class TenantInterceptor(private val workspaceManager: WorkspaceManager) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val requestBuilder = chain.request().newBuilder()
+        val request = chain.request()
+        val requestBuilder = request.newBuilder()
         
-        workspaceManager.currentTenantId?.let {
-            requestBuilder.addHeader("X-Tenant-ID", it)
+        val tenantId = workspaceManager.currentTenantId
+        if (!tenantId.isNullOrBlank() && tenantId != "COMP-LOCAL") {
+            requestBuilder.header("X-Tenant-ID", tenantId)
+        } else {
+            requestBuilder.removeHeader("X-Tenant-ID")
         }
-        workspaceManager.currentAuthToken?.let {
-            requestBuilder.addHeader("Authorization", "Bearer $it")
+        
+        val token = workspaceManager.currentAuthToken
+        if (!token.isNullOrBlank() && !workspaceManager.isTokenExpired(token)) {
+            requestBuilder.header("Authorization", "Bearer $token")
+        } else {
+            requestBuilder.removeHeader("Authorization")
         }
         
         return chain.proceed(requestBuilder.build())

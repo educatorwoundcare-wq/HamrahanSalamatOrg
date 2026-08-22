@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Beautiful Outer Protective Shield -->
+    <path
+        android:fillColor="#1CFFFFFF"
+        android:pathData="M 54,16 C 35,16 27,24 27,35 C 27,62 54,84 54,84 C 54,84 81,62 81,35 C 81,24 73,16 54,16 Z" />
+    <!-- Beautiful Inner Crisp Shield -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 54,20 C 38,20 31,27 31,37 C 31,60 54,80 54,80 C 54,80 77,60 77,37 C 77,27 70,20 54,20 Z" />
+    <!-- Medical Cross inside the Shield (Teal) -->
+    <path
+        android:fillColor="#0D9488"
+        android:pathData="M 50,37 h 8 v 26 h -8 Z" />
+    <path
+        android:fillColor="#0D9488"
+        android:pathData="M 41,46 h 26 v 8 h -26 Z" />
+</vector>

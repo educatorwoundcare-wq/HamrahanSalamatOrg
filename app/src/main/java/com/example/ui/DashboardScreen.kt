@@ -105,11 +105,21 @@ fun DashboardScreen(
     var dashboardTab by remember { mutableStateOf(0) } // 0 = خلاصه مالی و عملیاتی, 1 = تاریخچه فعالیت‌ها, 2 = صندوق پیام‌ها
     val connectedDevices by viewModel.connectedDevices.collectAsState()
     val pendingDevices = connectedDevices.filter { it.status == "Pending" }
+    val userRole by viewModel.currentUserRole.collectAsState()
+    val isMotherOrAdmin = userRole == "Mother Account" || userRole == "Admin" || userRole == "GM" || userRole == "General Manager" || userRole.isBlank()
     var isQuickActionsExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         viewModel.runAlertDiagnostics(context)
+    }
+
+    LaunchedEffect(pendingDevices.size, activeAlerts.size) {
+        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] pendingDevices count=${pendingDevices.size}")
+        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] activeAlerts count=${activeAlerts.size}")
+        pendingDevices.forEach { dev ->
+            android.util.Log.d("PAIRING_UI", "[PAIRING_UI] Pending device visible deviceId=${dev.deviceId}")
+        }
     }
 
     // --- State Variables for Interactive Drill Down & Transparency Mode ---
@@ -637,42 +647,14 @@ fun DashboardScreen(
             }
 
             // --- Sub-Navigation Tabs (Enterprise & Notification Center) ---
-            if (pendingDevices.isNotEmpty()) {
+            if (isMotherOrAdmin) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFEF3C7),
-                            contentColor = Color(0xFFD97706)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD97706).copy(alpha = 0.3f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.NotificationsActive,
-                                    contentDescription = null,
-                                    tint = Color(0xFFD97706),
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "درخواست دسترسی جدید (${pendingDevices.size})",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Text(
-                                text = "دستگاه‌های جدیدی درخواست اتصال به دفتر شما را دارند. برای مدیریت و تایید دسترسی به بخش شناسنامه مرکز مراجعه کنید.",
-                                style = MaterialTheme.typography.bodySmall,
-                                lineHeight = 18.sp
-                            )
-                        }
-                    }
+                    com.example.ui.components.PairingRequestsSection(
+                        pendingDevices = pendingDevices,
+                        onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
+                        onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
                 }
             }
             item {
@@ -1980,8 +1962,7 @@ fun DashboardScreen(
     // ==========================================
     // --- DIALOG 2: DETAILED VIEW DIALOG ---
     // ==========================================
-    if (detailViewObject != null) {
-        val obj = detailViewObject!!
+    detailViewObject?.let { obj ->
         AlertDialog(
             onDismissRequest = { detailViewObject = null },
             confirmButton = {
@@ -2058,8 +2039,7 @@ fun DashboardScreen(
     // ==========================================
     // --- DIALOG 3: INLINE EDIT DIALOG ---
     // ==========================================
-    if (editViewObject != null) {
-        val obj = editViewObject!!
+    editViewObject?.let { obj ->
         var reasonEdit by remember { mutableStateOf("") }
         var commentEdit by remember { mutableStateOf("") }
 
@@ -2333,8 +2313,7 @@ fun DashboardScreen(
     // ==========================================
     // --- DIALOG 4: DELETE CONFIRMATION ---
     // ==========================================
-    if (deleteViewObject != null) {
-        val obj = deleteViewObject!!
+    deleteViewObject?.let { obj ->
         AlertDialog(
             onDismissRequest = { deleteViewObject = null },
             confirmButton = {
@@ -2370,8 +2349,7 @@ fun DashboardScreen(
     // ==========================================
     // --- DIALOG 5: VIEW HISTORIC AUDIT LOGS ---
     // ==========================================
-    if (historyViewObject != null) {
-        val obj = historyViewObject!!
+    historyViewObject?.let { obj ->
         val filteredAudits = remember(obj, auditState) {
             val targetId = when (obj) {
                 is ServiceRegistration -> obj.id

@@ -1,0 +1,1 @@
+sed -i 's/class SyncEngine(/class SyncEngine(\n    private val dao: HamrahanDao,\n    private val cloudClient: CloudClient,\n    private val context: Context,\n    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())\n) {\n    private val uuidResolver = CanonicalUuidResolver(dao)/' app/src/main/java/com/example/data/SyncEngine.kt

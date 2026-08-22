@@ -45,7 +45,8 @@ class SupabaseAuthRepository(
                         workspaceManager.saveIdentity(
                             tenantId = tenantId,
                             syncCode = syncCode,
-                            authToken = accessToken
+                            authToken = accessToken,
+                            authUid = uid
                         )
                         AuthResult.Success
                     } else {

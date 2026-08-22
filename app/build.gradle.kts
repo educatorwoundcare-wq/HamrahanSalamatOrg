@@ -20,7 +20,7 @@ android {
     minSdk = 26
     targetSdk = 36
     versionCode = 3
-    versionName = "2.3 Beta"
+    versionName = "2.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -135,6 +135,7 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
+  implementation(libs.okhttp.dnsoverhttps)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   implementation(libs.poi)

@@ -206,8 +206,8 @@ fun PatientScreen(viewModel: HamrahanViewModel) {
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    if (selectedPatientForDetail != null) {
-                        val patient = selectedPatientForDetail!!
+                    val patient = selectedPatientForDetail
+                    if (patient != null) {
                         val patientRegs = registrations.filter { it.patientId == patient.id }
 
                         PatientDetailWorkspace(
@@ -318,8 +318,7 @@ fun PatientScreen(viewModel: HamrahanViewModel) {
             }
 
             // Detail Dialog for compact devices
-            if (selectedPatientForDetail != null) {
-                val patient = selectedPatientForDetail!!
+            selectedPatientForDetail?.let { patient ->
                 val patientRegs = registrations.filter { it.patientId == patient.id }
 
                 PatientDetailDialog(
@@ -518,8 +517,7 @@ fun AddEditPatientDialog(
 
         var quickDuplicateToResolve by remember { mutableStateOf<Referral?>(null) }
 
-        if (quickDuplicateToResolve != null) {
-            val existing = quickDuplicateToResolve!!
+        quickDuplicateToResolve?.let { existing ->
             AlertDialog(
                 onDismissRequest = { quickDuplicateToResolve = null },
                 title = { Text("معرف احتمالی تکراری یافت شد") },
@@ -829,9 +827,9 @@ fun AddEditPatientDialog(
                             }
                         }
                     }
-                    if (validationError != null) {
+                    validationError?.let { errText ->
                         Text(
-                            text = validationError!!,
+                            text = errText,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(start = 8.dp, top = 4.dp)

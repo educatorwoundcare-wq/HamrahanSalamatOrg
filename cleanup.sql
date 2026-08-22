@@ -1,0 +1,5 @@
+DELETE FROM patients WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');
+DELETE FROM expenses WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');
+DELETE FROM financial_transactions WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');
+DELETE FROM connected_devices WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');
+DELETE FROM workspaces WHERE company_id IN ('TEST_WORKSPACE_A', 'TEST_WORKSPACE_B');

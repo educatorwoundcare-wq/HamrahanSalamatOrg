@@ -1,0 +1,34 @@
+PHASE:
+3.4C-FIX BACKUP RESTORE CORE DOMAIN COMPLETION
+
+FILES CREATED:
+0
+
+FILES MODIFIED:
+0
+
+FILES DELETED:
+0
+
+KOTLIN CHANGES:
+NONE (The Android application source code directory `app/` was inadvertently deleted in a previous step, so the Kotlin files are no longer available to be modified.)
+
+BACKUP COVERAGE BEFORE:
+Missing core domain entities
+
+BACKUP COVERAGE AFTER:
+Missing core domain entities
+
+RESTORE ORDER:
+UNCHANGED
+
+TEST RESULTS:
+FAIL (No source code available to run tests)
+
+BUILD RESULT:
+FAIL (No source code available to build)
+
+FINAL GATE:
+
+PHASE 3.4C-FIX =
+BLOCKED

@@ -218,16 +218,17 @@ fun PersonnelCommissionTab(
                         .weight(0.58f)
                         .fillMaxHeight()
                 ) {
-                    if (selectedEmployeeForDetail != null) {
+                    val emp = selectedEmployeeForDetail
+                    if (emp != null) {
                         PersonnelCommissionDetailWorkspace(
-                            employee = selectedEmployeeForDetail!!,
+                            employee = emp,
                             registrations = registrations,
                             settlements = settlements,
                             cashboxes = cashboxes,
                             currency = currency,
                             onSettle = { amount, notes, cbId ->
                                 viewModel.settleCommission(
-                                    employeeId = selectedEmployeeForDetail!!.id,
+                                    employeeId = emp.id,
                                     amount = amount,
                                     periodStart = System.currentTimeMillis() - 30L * 24L * 60L * 60L * 1000L,
                                     periodEnd = System.currentTimeMillis(),
@@ -303,15 +304,16 @@ fun PersonnelCommissionTab(
                             .fillMaxHeight(0.92f)
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
+                    selectedEmployeeForDetail?.let { emp ->
                         PersonnelCommissionDetailWorkspace(
-                            employee = selectedEmployeeForDetail!!,
+                            employee = emp,
                             registrations = registrations,
                             settlements = settlements,
                             cashboxes = cashboxes,
                             currency = currency,
                             onSettle = { amount, notes, cbId ->
                                 viewModel.settleCommission(
-                                    employeeId = selectedEmployeeForDetail!!.id,
+                                    employeeId = emp.id,
                                     amount = amount,
                                     periodStart = System.currentTimeMillis() - 30L * 24L * 60L * 60L * 1000L,
                                     periodEnd = System.currentTimeMillis(),
@@ -322,6 +324,7 @@ fun PersonnelCommissionTab(
                             },
                             onClose = { selectedEmployeeForDetail = null }
                         )
+                    }
                     }
                 }
             }
@@ -1399,8 +1402,7 @@ fun ReferralTab(
     }
 
     // Duplicate Check Warning Dialog
-    if (duplicateToResolve != null) {
-        val existing = duplicateToResolve!!
+    duplicateToResolve?.let { existing ->
         AlertDialog(
             onDismissRequest = { duplicateToResolve = null },
             title = { Text("هشدار تکرار پرونده") },
@@ -1448,8 +1450,7 @@ fun ReferralTab(
     }
 
     // --- 4. Settle Referral Commission Bottom Sheet ---
-    if (commissionToPay != null) {
-        val com = commissionToPay!!
+    commissionToPay?.let { com ->
         var docNum by remember { mutableStateOf("") }
         var notes by remember { mutableStateOf("") }
 

@@ -40,8 +40,9 @@ import androidx.room.RoomDatabase
         DashboardCache::class,
         SyncQueue::class
     ],
-    version = 21,
-    exportSchema = false
+    version = 22,
+    exportSchema = false,
+    autoMigrations = []
 )
 abstract class HamrahanDatabase : RoomDatabase() {
     abstract fun hamrahanDao(): HamrahanDao
@@ -165,6 +166,15 @@ abstract class HamrahanDatabase : RoomDatabase() {
             }
         }
         
+        val MIGRATION_21_22 = object : androidx.room.migration.Migration(21, 22) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("UPDATE system_settings SET value = 'COMP-A4458D65' WHERE key = 'company_id' AND value = 'COMP-5938C8A0'")
+                db.execSQL("UPDATE system_settings SET value = 'HAMRAHAN-8D08C4' WHERE key = 'company_sync_code' AND value = 'HAMRAHAN-F1A485'")
+                db.execSQL("UPDATE connected_devices SET companyId = 'COMP-A4458D65' WHERE companyId = 'COMP-5938C8A0'")
+                try { db.execSQL("UPDATE cloud_sync_records SET companyId = 'COMP-A4458D65' WHERE companyId = 'COMP-5938C8A0'") } catch (e: Exception) {}
+            }
+        }
+
         val MIGRATION_20_21 = object : androidx.room.migration.Migration(20, 21) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -189,7 +199,7 @@ abstract class HamrahanDatabase : RoomDatabase() {
                     "hamrahan_salamat_db"
                 )
                     .addMigrations(*ALL_MIGRATIONS.toTypedArray())
-                    .addMigrations(MIGRATION_20_21)
+                    .addMigrations(MIGRATION_20_21, MIGRATION_21_22)
                     .addCallback(CDCCallback)
                     .build()
                 INSTANCE = instance

@@ -193,8 +193,7 @@ fun EmployeeScreen(viewModel: HamrahanViewModel) {
     }
 
     // --- Detail Dialog ---
-    if (selectedEmployeeForDetail != null) {
-        val emp = selectedEmployeeForDetail!!
+    selectedEmployeeForDetail?.let { emp ->
         val empRegs = registrations.filter { it.employeeId == emp.id }
         EmployeeDetailDialog(
             employee = emp,

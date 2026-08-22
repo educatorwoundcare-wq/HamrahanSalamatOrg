@@ -1,0 +1,83 @@
+PHASE 2 IMPLEMENTATION PREFLIGHT REPORT
+
+Source Inventory:
+- Entities.kt: Contains all Room entity definitions.
+- HamrahanDao.kt: Data access object for all operations.
+- HamrahanRepository.kt: Exposes domain operations and calls registerLocalChange.
+- SyncEngine.kt: Handles sync loops and conflict resolution.
+- CloudClient.kt / SupabaseSyncClient.kt: Remote communication.
+- WorkspaceManager.kt: Workspace state management.
+- RegisterServiceAndGenerateLedgerUseCase.kt: Complex transaction usecase.
+- SettleEmployeeCommissionUseCase.kt: Another transaction usecase.
+
+Entity UUID Coverage:
+- Most entities (Patient, Employee, Service, etc.) already have `val uuid: String = java.util.UUID.randomUUID().toString()`.
+- The following synchronized entities LACK UUIDs and currently use `id.toString()` or `key`:
+  - FinancialReport (id: Int)
+  - SystemSetting (key: String)
+  - AuditLog (id: Int)
+  - UserPermission (permissionName: String)
+  - FinancialEditHistory (id: Int)
+  - JournalEntry (id: Int)
+  - SyncMetadata (does not need UUID, will be replaced)
+  - CloudSyncRecord (legacy, uses type_id)
+
+Room Transaction Coverage:
+- `RegisterServiceAndGenerateLedgerUseCase` and `SettleEmployeeCommissionUseCase` use `dao.runInTransaction`.
+- `HamrahanRepository` uses `dao.runInTransaction` extensively.
+- However, `registerLocalChange` is called *after* or inside the transaction but it performs a separate insert. `registerLocalChange` internally calls `dao.insertSyncMetadata(meta)` and `syncEngine.triggerSync()`.
+
+SyncMetadata References:
+- Used heavily in `registerLocalChange` and `reindexWorkspaceData` and `SyncEngine`.
+- Needs to be replaced with `SyncQueue`.
+
+SyncQueue References:
+- Existing `SyncQueue` data class is currently partially defined but not fully used as the canonical operation log in all mutations (currently `SyncMetadata` is used).
+
+registerLocalChange References:
+- Called extensively in `HamrahanRepository.kt`, `HamrahanViewModel.kt`, `RegisterServiceAndGenerateLedgerUseCase.kt`, `SettleEmployeeCommissionUseCase.kt`.
+
+reindexWorkspaceData References:
+- Called in `HamrahanViewModel.kt` during workspace join.
+- Re-marks all entities as pending.
+
+cloud_records References:
+- Defined in `Entities.kt`, used in `CloudClient` or `SyncEngine`.
+
+Supabase Domain Tables:
+- Need to be created (they don't exist yet for domain objects, only auth tables exist).
+
+Supabase RPC Inventory:
+- Need to create `sync_push_batch` and `sync_pull`.
+
+RLS Inventory:
+- Phase 1 RLS exists for workspaces/connected_devices.
+- Domain tables need new RLS policies using `is_device_member_of_workspace`.
+
+Exact files to change:
+- Entities.kt (Add UUIDs to missing entities, create SyncQueue v2)
+- HamrahanDao.kt (Add SyncQueue methods, modify mutations to accept SyncQueue within transaction)
+- HamrahanRepository.kt (Replace registerLocalChange with atomic queue inserts, remove reindexWorkspaceData)
+- RegisterServiceAndGenerateLedgerUseCase.kt (Update for atomic queue)
+- SettleEmployeeCommissionUseCase.kt (Update for atomic queue)
+- SyncEngine.kt (Rewrite to use SyncQueue and new RPCs)
+- Supabase Sync logic (Create new RPC calls)
+
+Migration Plan:
+- 2A: Add `uuid` to `FinancialReport`, `AuditLog`, `FinancialEditHistory`, `JournalEntry` with default randomUUID(). Write Room AutoMigration or manual migration.
+- 2B: Update `HamrahanDao` with new `SyncQueue` and atomic operations. Replace `registerLocalChange`.
+- 2C: Enforce `company_id` in `SyncQueue`.
+- 2D: Create Supabase migration for relational tables.
+- 2E: Create `sync_push_batch` RPC.
+- 2F: Create `sync_pull` RPC.
+- 2G: Update `SyncEngine`.
+- 2H: Remove `reindexWorkspaceData` and handle workspace switch safely.
+
+Data-Preservation Plan:
+- `cloud_records` will not be dropped.
+- Existing records will get a generated UUID if they don't have one (though Kotlin default values only apply to new instantiations, so Room migration will need to handle existing rows by generating UUIDs for them).
+
+Blockers / Contradictions:
+- `SystemSetting` and `UserPermission` are arguably device-local or user-role specific. Should they be synced to Supabase domain tables? The prompt says "Every synchronized entity MUST have a stable canonical UUID." If they are synced, we must add a UUID. Let's add UUID to them for consistency or exclude them from sync if they shouldn't be synced. In `reindexWorkspaceData`, they are marked as Pending, so they were synced! I will add UUID to them.
+- Room migration for adding `uuid` to existing tables (FinancialReport, AuditLog, etc.) requires a manual `Migration` object because we need to execute `UPDATE table SET uuid = hex(...) WHERE uuid IS NULL`.
+

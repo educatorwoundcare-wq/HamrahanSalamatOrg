@@ -352,19 +352,19 @@ fun AccountingScreen(viewModel: HamrahanViewModel) {
                                         .weight(1f)
                                         .fillMaxHeight()
                                 ) {
-                                    if (selectedTransaction != null) {
+                                    selectedTransaction?.let { tx ->
                                         TransactionDetailWorkspace(
-                                            tx = selectedTransaction!!,
+                                            tx = tx,
                                             currency = currency,
                                             cashboxes = cashboxes,
-                                            onVoid = { viewModel.updateFinancialTransaction(selectedTransaction!!.copy(isCleared = false)) },
-                                            onRestore = { viewModel.updateFinancialTransaction(selectedTransaction!!.copy(isCleared = true)) },
+                                            onVoid = { viewModel.updateFinancialTransaction(tx.copy(isCleared = false)) },
+                                            onRestore = { viewModel.updateFinancialTransaction(tx.copy(isCleared = true)) },
                                             onDelete = {
-                                                viewModel.deleteFinancialTransaction(selectedTransaction!!)
+                                                viewModel.deleteFinancialTransaction(tx)
                                                 selectedTransaction = null
                                             }
                                         )
-                                    } else {
+                                    } ?: run {
                                         EmptyState(
                                             icon = Icons.Default.Info,
                                             message = "یک تراکنش را برای مشاهده جزئیات انتخاب کنید",

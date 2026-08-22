@@ -113,9 +113,10 @@ fun RegistrationScreen(viewModel: HamrahanViewModel) {
                 selectedRegForEdit = null
             },
             onSave = { registrationToSave, selectedSvcs, selectedCashboxId, reason, comment ->
-                if (selectedRegForEdit != null) {
+                val editReg = selectedRegForEdit
+                if (editReg != null) {
                     viewModel.editServiceRegistration(
-                        id = selectedRegForEdit!!.id,
+                        id = editReg.id,
                         patientId = registrationToSave.patientId,
                         serviceId = registrationToSave.serviceId,
                         employeeId = registrationToSave.employeeId,

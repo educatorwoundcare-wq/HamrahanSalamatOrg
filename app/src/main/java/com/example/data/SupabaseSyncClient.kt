@@ -1,36 +1,23 @@
 package com.example.data
 
+import com.example.data.supabase.SupabaseClientManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 
 class SupabaseSyncClient(
-    private val workspaceManager: WorkspaceManager,
+    private val clientManager: SupabaseClientManager,
     private val dao: HamrahanDao
 ) {
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(TenantInterceptor(workspaceManager))
-        // Add auth interceptor for Supabase API key (anon key)
-        .addInterceptor { chain ->
-            val request = chain.request().newBuilder()
-                .addHeader("apikey", "SUPABASE_ANON_KEY_PLACEHOLDER")
-                .build()
-            chain.proceed(request)
-        }
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    private val baseUrl = "https://your-supabase-project.supabase.co/rest/v1"
+    private val client = clientManager.httpClient
+    private val baseUrl = "${clientManager.supabaseUrl}/rest/v1"
 
     suspend fun pushBatchedChanges(tenantId: String, changes: List<SyncQueue>): SyncResult = withContext(Dispatchers.IO) {
         val payload = changes.map { queueItem ->

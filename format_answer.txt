@@ -1,0 +1,17 @@
+ROOT CAUSE:
+[یک علت اثباتشده]
+
+RLS POLICY:
+[policy واقعی]
+
+AUTH:
+[وضعیت واقعی JWT/auth.uid]
+
+PAIRING INSERT CONTRACT:
+[شرایط لازم برای INSERT]
+
+MINIMAL FIX:
+[کمترین اصلاح لازم]
+
+SECURITY:
+[چرا اصلاح اجازه cross-company یا unauthorized approval نمیدهد]

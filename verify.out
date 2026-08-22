@@ -1,0 +1,18 @@
+[
+  {
+    "grantee": "postgres",
+    "privilege_type": "EXECUTE"
+  },
+  {
+    "grantee": "anon",
+    "privilege_type": "EXECUTE"
+  },
+  {
+    "grantee": "authenticated",
+    "privilege_type": "EXECUTE"
+  },
+  {
+    "grantee": "service_role",
+    "privilege_type": "EXECUTE"
+  }
+]

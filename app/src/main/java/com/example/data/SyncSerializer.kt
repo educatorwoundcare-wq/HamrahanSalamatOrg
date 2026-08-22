@@ -43,38 +43,42 @@ object SyncSerializer {
         }
     }
 
-    fun deserialize(entityType: String, json: String): Any {
-        return when (entityType) {
-            "Patient" -> moshi.adapter(Patient::class.java).fromJson(json)!!
-            "Employee" -> moshi.adapter(Employee::class.java).fromJson(json)!!
-            "Service" -> moshi.adapter(Service::class.java).fromJson(json)!!
-            "ServiceRegistration" -> moshi.adapter(ServiceRegistration::class.java).fromJson(json)!!
-            "FinancialTransaction" -> moshi.adapter(FinancialTransaction::class.java).fromJson(json)!!
-            "Cashbox" -> moshi.adapter(Cashbox::class.java).fromJson(json)!!
-            "CommissionSettlement" -> moshi.adapter(CommissionSettlement::class.java).fromJson(json)!!
-            "Expense" -> moshi.adapter(Expense::class.java).fromJson(json)!!
-            "ExpenseCategory" -> moshi.adapter(ExpenseCategory::class.java).fromJson(json)!!
-            "FixedExpenseTemplate" -> moshi.adapter(FixedExpenseTemplate::class.java).fromJson(json)!!
-            "FinancialReport" -> moshi.adapter(FinancialReport::class.java).fromJson(json)!!
-            "SystemSetting" -> moshi.adapter(SystemSetting::class.java).fromJson(json)!!
-            "AuditLog" -> moshi.adapter(AuditLog::class.java).fromJson(json)!!
-            "UserPermission" -> moshi.adapter(UserPermission::class.java).fromJson(json)!!
-            "FinancialEditHistory" -> moshi.adapter(FinancialEditHistory::class.java).fromJson(json)!!
-            "JournalEntry" -> moshi.adapter(JournalEntry::class.java).fromJson(json)!!
-            "Referral" -> moshi.adapter(Referral::class.java).fromJson(json)!!
-            "ReferralCommission" -> moshi.adapter(ReferralCommission::class.java).fromJson(json)!!
-            "Alert" -> moshi.adapter(Alert::class.java).fromJson(json)!!
-            "Contract" -> moshi.adapter(Contract::class.java).fromJson(json)!!
-            "StaffProfile" -> moshi.adapter(StaffProfile::class.java).fromJson(json)!!
-            "ServiceSchedule" -> moshi.adapter(ServiceSchedule::class.java).fromJson(json)!!
-            "NursingReport" -> moshi.adapter(NursingReport::class.java).fromJson(json)!!
-            "VitalSigns" -> moshi.adapter(VitalSigns::class.java).fromJson(json)!!
-            "WoundRecord" -> moshi.adapter(WoundRecord::class.java).fromJson(json)!!
-            "ConsentForm" -> moshi.adapter(ConsentForm::class.java).fromJson(json)!!
-            "Prescription" -> moshi.adapter(Prescription::class.java).fromJson(json)!!
-            "DashboardCache" -> moshi.adapter(DashboardCache::class.java).fromJson(json)!!
-            "ConnectedDevice" -> moshi.adapter(ConnectedDevice::class.java).fromJson(json)!!
-            else -> throw IllegalArgumentException("Unknown entity type: $entityType")
+    fun deserialize(entityType: String, json: String): Any? {
+        return try {
+            when (entityType) {
+                "Patient" -> moshi.adapter(Patient::class.java).fromJson(json)
+                "Employee" -> moshi.adapter(Employee::class.java).fromJson(json)
+                "Service" -> moshi.adapter(Service::class.java).fromJson(json)
+                "ServiceRegistration" -> moshi.adapter(ServiceRegistration::class.java).fromJson(json)
+                "FinancialTransaction" -> moshi.adapter(FinancialTransaction::class.java).fromJson(json)
+                "Cashbox" -> moshi.adapter(Cashbox::class.java).fromJson(json)
+                "CommissionSettlement" -> moshi.adapter(CommissionSettlement::class.java).fromJson(json)
+                "Expense" -> moshi.adapter(Expense::class.java).fromJson(json)
+                "ExpenseCategory" -> moshi.adapter(ExpenseCategory::class.java).fromJson(json)
+                "FixedExpenseTemplate" -> moshi.adapter(FixedExpenseTemplate::class.java).fromJson(json)
+                "FinancialReport" -> moshi.adapter(FinancialReport::class.java).fromJson(json)
+                "SystemSetting" -> moshi.adapter(SystemSetting::class.java).fromJson(json)
+                "AuditLog" -> moshi.adapter(AuditLog::class.java).fromJson(json)
+                "UserPermission" -> moshi.adapter(UserPermission::class.java).fromJson(json)
+                "FinancialEditHistory" -> moshi.adapter(FinancialEditHistory::class.java).fromJson(json)
+                "JournalEntry" -> moshi.adapter(JournalEntry::class.java).fromJson(json)
+                "Referral" -> moshi.adapter(Referral::class.java).fromJson(json)
+                "ReferralCommission" -> moshi.adapter(ReferralCommission::class.java).fromJson(json)
+                "Alert" -> moshi.adapter(Alert::class.java).fromJson(json)
+                "Contract" -> moshi.adapter(Contract::class.java).fromJson(json)
+                "StaffProfile" -> moshi.adapter(StaffProfile::class.java).fromJson(json)
+                "ServiceSchedule" -> moshi.adapter(ServiceSchedule::class.java).fromJson(json)
+                "NursingReport" -> moshi.adapter(NursingReport::class.java).fromJson(json)
+                "VitalSigns" -> moshi.adapter(VitalSigns::class.java).fromJson(json)
+                "WoundRecord" -> moshi.adapter(WoundRecord::class.java).fromJson(json)
+                "ConsentForm" -> moshi.adapter(ConsentForm::class.java).fromJson(json)
+                "Prescription" -> moshi.adapter(Prescription::class.java).fromJson(json)
+                "DashboardCache" -> moshi.adapter(DashboardCache::class.java).fromJson(json)
+                "ConnectedDevice" -> moshi.adapter(ConnectedDevice::class.java).fromJson(json)
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 }

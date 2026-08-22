@@ -1,0 +1,1 @@
+Authentication to Supabase Management API: FAIL (403)
