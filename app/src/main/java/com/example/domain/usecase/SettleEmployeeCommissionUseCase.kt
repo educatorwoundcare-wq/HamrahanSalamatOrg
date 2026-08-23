@@ -69,7 +69,8 @@ class SettleEmployeeCommissionUseCase(
     }
 
     private suspend fun registerLocalChange(entityType: String, entityId: String, isDeleted: Boolean = false) {
-        val activeDeviceId = dao.getSystemSettingByKey("active_device_id") ?: "UNKNOWN-DEVICE"
+        val activeDeviceId = dao.getSystemSettingByKey("active_device_id")?.takeIf { com.example.data.DeviceIdentityProvider.isValidUuidDeviceId(it) }
+            ?: "DEV-00000000-0000-0000-0000-000000000000"
         val meta = com.example.data.SyncMetadata(
             entityType = entityType,
             entityId = entityId,

@@ -1,38 +1,33 @@
 package com.example.data
 
 import com.squareup.moshi.JsonClass
-import com.example.data.Patient
-import com.example.data.ServiceRegistration
-import com.example.data.Expense
 
 @JsonClass(generateAdapter = true)
-data class PushData(
-    val patients: List<Patient>? = null,
-    val services: List<ServiceRegistration>? = null,
-    val expenses: List<Expense>? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class PullData(
-    val patients: List<Patient>? = null,
-    val services: List<ServiceRegistration>? = null,
-    val expenses: List<Expense>? = null
-)
-
-@JsonClass(generateAdapter = true)
-data class SyncRequest(
+data class DeviceRegistrationInsertPayload(
     val device_id: String,
-    val workspace_id: String,
-    val last_sync_at: Long,
-    val limit: Int = 500,
-    val push_data: PushData? = null
+    val company_id: String,
+    val uid: String,
+    val device_name: String,
+    val device_type: String,
+    val app_version: String = "v2.0.0",
+    val role: String,
+    val status: String,
+    val requested_role: String? = null,
+    val last_online_time: Long = System.currentTimeMillis(),
+    val last_successful_sync: Long = 0L,
+    val last_seen: Long = System.currentTimeMillis()
 )
 
 @JsonClass(generateAdapter = true)
-data class SyncResponse(
-    val status: String,
-    val server_timestamp: Long,
-    val has_more: Boolean,
-    val next_sync_at: Long,
-    val pull_data: PullData? = null
+data class DeviceStatusUpdatePayload(
+    val device_name: String? = null,
+    val device_type: String? = null,
+    val app_version: String? = null,
+    val status: String? = null,
+    val role: String? = null,
+    val requested_role: String? = null,
+    val last_online_time: Long? = null,
+    val last_successful_sync: Long? = null,
+    val last_seen: Long? = null
 )
+

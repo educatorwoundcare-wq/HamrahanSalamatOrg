@@ -19,7 +19,7 @@ class HamrahanRepository @JvmOverloads constructor(
     val sessionManager: SessionManager = SessionManager(TokenManager(context, dao))
 ) {
     suspend fun registerLocalChange(entityType: String, entityId: String, isDeleted: Boolean = false) {
-        val activeDeviceId = dao.getSystemSettingByKey("active_device_id") ?: "UNKNOWN-DEVICE"
+        val activeDeviceId = DeviceIdentityProvider.getDeviceId(context)
         val meta = SyncMetadata(
             entityType = entityType,
             entityId = entityId,
@@ -213,11 +213,12 @@ class HamrahanRepository @JvmOverloads constructor(
 
     // --- Pre-populate helper ---
     suspend fun checkAndPrepopulate() {
-        val activeDevIdSetting = dao.getSystemSettingByKey("active_device_id")
-        val isFirstLaunch = activeDevIdSetting.isNullOrEmpty()
+        val canonicalDevId = DeviceIdentityProvider.syncWithRoomDatabase(context, dao)
+        val activeDevIdSetting = dao.getSystemSettingByKey("company_is_setup")
+        val isFirstLaunch = activeDevIdSetting == null && dao.getSystemSettingByKey("company_name") == null
 
         if (isFirstLaunch) {
-            val localDevId = "DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").uppercase().take(8)
+            val localDevId = canonicalDevId
 
             val settings = listOf(
                 SystemSetting("active_device_id", localDevId),
@@ -290,7 +291,7 @@ class HamrahanRepository @JvmOverloads constructor(
         dao.insertSystemSetting(SystemSetting("active_device_status", "Active"))
         dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
 
-        val activeDeviceId = dao.getSystemSettingByKey("active_device_id")
+        val activeDeviceId = DeviceIdentityProvider.syncWithRoomDatabase(context, dao)
         if (!activeDeviceId.isNullOrEmpty()) {
             val existingDev = dao.getConnectedDeviceById(activeDeviceId)
             val workspaceManager = WorkspaceManager.getInstance(context)
@@ -318,7 +319,7 @@ class HamrahanRepository @JvmOverloads constructor(
     }
 
     suspend fun purgeAllLocalOfflineDevices() {
-        val activeDevId = dao.getSystemSettingByKey("active_device_id") ?: ""
+        val activeDevId = DeviceIdentityProvider.getDeviceId(context)
         val allDevs = dao.getAllConnectedDevicesList()
         for (dev in allDevs) {
             if (dev.deviceId != activeDevId || dev.companyId == "COMP-LOCAL" || dev.deviceName.contains("دستگاه محلی") || dev.deviceName.contains("آفلاین")) {
@@ -350,7 +351,7 @@ class HamrahanRepository @JvmOverloads constructor(
         dao.insertSystemSetting(SystemSetting("active_device_status", "Active"))
         dao.insertSystemSetting(SystemSetting("device_has_been_approved", "true"))
 
-        val devId = dao.getSystemSettingByKey("active_device_id") ?: ("DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase())
+        val devId = DeviceIdentityProvider.syncWithRoomDatabase(context, dao)
         dao.insertSystemSetting(SystemSetting("active_device_id", devId))
         dao.insertSystemSetting(SystemSetting("active_device_name", "تلفن مدیرعامل (سرپرست مرکز)"))
 
@@ -391,7 +392,7 @@ class HamrahanRepository @JvmOverloads constructor(
         
         // 2. Scan every business entity in Room and mark as Pending in SyncMetadata for initial upload
         val now = System.currentTimeMillis()
-        val activeDevId = dao.getSystemSettingByKey("active_device_id") ?: "UNKNOWN-DEVICE"
+        val activeDevId = DeviceIdentityProvider.getDeviceId(context)
         
         suspend fun markPending(type: String, id: String) {
             dao.insertSyncMetadata(

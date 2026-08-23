@@ -22,6 +22,41 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+data class SyncSummary(
+    val total: Int,
+    val successful: Int,
+    val pending: Int,
+    val retrying: Int,
+    val failed: Int,
+    val blocked: Int,
+    val details: List<SyncItemDetail> = emptyList()
+)
+
+data class SyncItemDetail(
+    val operationUuid: String,
+    val entityType: String,
+    val operationType: String,
+    val companyId: String,
+    val retryCount: Int,
+    val lastAttemptTimestamp: Long,
+    val lastError: String,
+    val httpStatus: Int?,
+    val serverResponse: String?,
+    val classification: SyncClassification,
+    val failureReasonDescription: String
+)
+
+enum class SyncClassification(val code: String, val title: String, val descriptionFa: String) {
+    A("A", "Waiting / Never Attempted", "در انتظار اجرا / هنوز تلاش نشده"),
+    B("B", "Retryable Network Failure", "خطای موقت شبکه قابل تلاش مجدد"),
+    C("C", "Authentication Failure", "خطای احراز هویت / عدم وجود توکن"),
+    D("D", "RLS Failure", "خطای سطح دسترسی RLS"),
+    E("E", "Duplicate / Conflict", "تکراری یا تداخل داده"),
+    F("F", "Invalid Workspace / Company ID", "شناسه دفتر/شرکت نامعتبر یا قدیمی"),
+    G("G", "Serialization / Parsing Failure", "خطای سریال‌سازی یا خواندن داده محلی"),
+    H("H", "Permanent Server Error", "خطای دائمی سرور")
+}
+
 class SyncEngine @JvmOverloads constructor(
     private val context: Context,
     private val dao: HamrahanDao,
@@ -42,6 +77,9 @@ class SyncEngine @JvmOverloads constructor(
 
     private val _failedSyncCount = MutableStateFlow(0)
     val failedSyncCount: StateFlow<Int> = _failedSyncCount.asStateFlow()
+
+    private val _syncSummary = MutableStateFlow<SyncSummary?>(null)
+    val syncSummary: StateFlow<SyncSummary?> = _syncSummary.asStateFlow()
 
     private val pairingDialogsShown = mutableSetOf<String>()
     val pairingApprovalEvents = MutableSharedFlow<ConnectedDevice>(extraBufferCapacity = 16)
@@ -176,10 +214,7 @@ class SyncEngine @JvmOverloads constructor(
                 return@withContext true
             }
 
-            val activeDeviceId = dao.getSystemSettingByKey("active_device_id")
-                ?: ("DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()).also {
-                    dao.insertSystemSetting(SystemSetting("active_device_id", it))
-                }
+            val activeDeviceId = DeviceIdentityProvider.syncWithRoomDatabase(context, dao)
             syncDeviceId = activeDeviceId
             val localStatus = dao.getSystemSettingByKey("active_device_status") ?: "Pending"
 
@@ -301,7 +336,7 @@ class SyncEngine @JvmOverloads constructor(
                     val isCompanySetup = dao.getSystemSettingByKey("company_is_setup")?.toBoolean() ?: false
                     
                     if (cloudInfo == null && isCompanySetup) {
-                        Log.w("SyncEngine", "[Self-Healing] Detected missing /info node on Firebase for an active workspace! Starting healing...")
+                        Log.w("SyncEngine", "[Self-Healing] Detected missing workspace record in Supabase for an active workspace! Starting healing...")
                         
                         val localCode = dao.getSystemSettingByKey("company_sync_code") ?: "HAMRAHAN-HEAL-RECOVERY"
                         val localName = dao.getSystemSettingByKey("center_name") ?: "نرم افزار مدیریت دفاتر خدمات پرستاری"
@@ -337,54 +372,316 @@ class SyncEngine @JvmOverloads constructor(
             }
 
             val pendingMetadata = dao.getPendingSyncMetadata()
+            val totalPendingCount = pendingMetadata.size
             if (pendingMetadata.isNotEmpty()) {
-                Log.i("SyncEngine", "[Sync Cycle] Found ${pendingMetadata.size} pending local changes to upload for company $companyId")
+                Log.i("SyncEngine", "[Sync Cycle] Found $totalPendingCount pending local changes to upload for company $companyId")
             }
-            var consecutiveFailures = 0
+
+            var successfulUploads = 0
+            var failedUploads = 0
+            var retryingUploads = 0
+            var blockedUploads = 0
+            val syncDetails = mutableListOf<SyncItemDetail>()
+
+            // Retrieve or validate canonical companyId
+            val canonicalCompanyId = companyId.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+                ?: WorkspaceManager.getInstance(context).currentTenantId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+                ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+                ?: ""
+
             for (meta in pendingMetadata) {
-                if (consecutiveFailures >= 3) {
-                    Log.w("SyncEngine", "[Upload] Fast-breaking remaining ${pendingMetadata.size} upload items due to consecutive failures (network or permission issue).")
-                    currentRetryDelay = (currentRetryDelay * 1.5).toLong().coerceAtMost(maxRetryDelay)
-                    break
-                }
+                val operationUuid = meta.entityId
+                val entityType = meta.entityType
+                val operationType = if (meta.deletedStatus) "DELETE" else "UPSERT"
+                val lastAttemptTs = System.currentTimeMillis()
+
                 try {
                     // Fetch local record
                     val localDataJson = fetchLocalRecordJson(meta.entityType, meta.entityId)
-                    if (localDataJson != null || meta.deletedStatus) {
-                        val cloudRecord = CloudSyncRecord(
-                            id = "${meta.entityType}_${meta.entityId}",
-                            entityType = meta.entityType,
-                            entityId = meta.entityId,
-                            dataJson = localDataJson ?: "",
-                            updatedTimestamp = meta.updatedTimestamp,
-                            lastModifiedDeviceId = activeDeviceId,
-                            isDeleted = meta.deletedStatus
+                    if (localDataJson == null && !meta.deletedStatus) {
+                        // G. Serialization / parsing failure (or missing local record)
+                        val lastError = "Local record data could not be found or serialized for $entityType with ID $operationUuid"
+                        val classification = SyncClassification.G
+                        Log.w("SYNC_QUEUE_TRACE", """
+                            [SYNC_QUEUE_ITEM]
+                            operation UUID: $operationUuid
+                            entity/table type: $entityType
+                            operation type: $operationType
+                            company/workspace ID: $canonicalCompanyId
+                            retry count: 1
+                            last attempt timestamp: $lastAttemptTs
+                            last error: $lastError
+                            HTTP status: N/A
+                            server response: NONE
+                            classification: ${classification.code} - ${classification.title}
+                        """.trimIndent())
+
+                        failedUploads++
+                        dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                        syncDetails.add(
+                            SyncItemDetail(
+                                operationUuid = operationUuid,
+                                entityType = entityType,
+                                operationType = operationType,
+                                companyId = canonicalCompanyId,
+                                retryCount = 1,
+                                lastAttemptTimestamp = lastAttemptTs,
+                                lastError = lastError,
+                                httpStatus = null,
+                                serverResponse = null,
+                                classification = classification,
+                                failureReasonDescription = classification.descriptionFa + ": " + lastError
+                            )
                         )
-                        // Real cloud upload
-                        Log.i("SyncEngine", "[Upload] Uploading record ${cloudRecord.id} of type ${cloudRecord.entityType} to company $companyId")
-                        val success = cloudClient.uploadRecord(companyId, cloudRecord)
-                        if (success) {
-                            Log.i("SyncEngine", "[Upload] Successfully uploaded record ${cloudRecord.id}")
-                            consecutiveFailures = 0
-                            // Mark local metadata as Synced
+                        continue
+                    }
+
+                    if (canonicalCompanyId.isBlank()) {
+                        // F. Invalid workspace / company ID
+                        val lastError = "Company ID is empty or invalid (COMP-LOCAL / unassigned)"
+                        val classification = SyncClassification.F
+                        Log.w("SYNC_QUEUE_TRACE", """
+                            [SYNC_QUEUE_ITEM]
+                            operation UUID: $operationUuid
+                            entity/table type: $entityType
+                            operation type: $operationType
+                            company/workspace ID: NONE
+                            retry count: 1
+                            last attempt timestamp: $lastAttemptTs
+                            last error: $lastError
+                            HTTP status: N/A
+                            server response: NONE
+                            classification: ${classification.code} - ${classification.title}
+                        """.trimIndent())
+
+                        blockedUploads++
+                        dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                        syncDetails.add(
+                            SyncItemDetail(
+                                operationUuid = operationUuid,
+                                entityType = entityType,
+                                operationType = operationType,
+                                companyId = "",
+                                retryCount = 1,
+                                lastAttemptTimestamp = lastAttemptTs,
+                                lastError = lastError,
+                                httpStatus = null,
+                                serverResponse = null,
+                                classification = classification,
+                                failureReasonDescription = classification.descriptionFa
+                            )
+                        )
+                        continue
+                    }
+
+                    val cloudRecord = CloudSyncRecord(
+                        id = "${meta.entityType}_${meta.entityId}",
+                        entityType = meta.entityType,
+                        entityId = meta.entityId,
+                        dataJson = localDataJson ?: "",
+                        updatedTimestamp = meta.updatedTimestamp,
+                        lastModifiedDeviceId = activeDeviceId,
+                        isDeleted = meta.deletedStatus
+                    )
+
+                    // Real cloud upload using detailed caller
+                    Log.i("SyncEngine", "[Upload] Uploading record ${cloudRecord.id} of type ${cloudRecord.entityType} to company $canonicalCompanyId")
+                    val uploadResult = cloudClient.uploadRecordDetailed(canonicalCompanyId, cloudRecord)
+                    when (uploadResult) {
+                        is UploadRecordResult.Success -> {
+                            Log.i("SYNC_QUEUE_TRACE", """
+                                [SYNC_QUEUE_ITEM]
+                                operation UUID: $operationUuid
+                                entity/table type: $entityType
+                                operation type: $operationType
+                                company/workspace ID: $canonicalCompanyId
+                                retry count: 0
+                                last attempt timestamp: $lastAttemptTs
+                                last error: NONE
+                                HTTP status: ${uploadResult.httpCode}
+                                server response: SUCCESS
+                                classification: SUCCESS
+                            """.trimIndent())
+
+                            successfulUploads++
                             dao.insertSyncMetadata(meta.copy(syncStatus = "Synced"))
-                            // Also update local cache for representation
                             dao.insertCloudSyncRecord(cloudRecord)
-                        } else {
-                            Log.e("SyncEngine", "[Upload] Failed to upload record ${cloudRecord.id} (Security Rule failure, revoked device, or network)")
-                            consecutiveFailures++
-                            dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
                         }
-                    } else {
-                        // Orphan metadata or already deleted
-                        dao.deleteSyncMetadata(meta.entityType, meta.entityId)
+                        is UploadRecordResult.Blocked -> {
+                            val classification = if (uploadResult.reason.contains("TOKEN") || uploadResult.reason.contains("AUTH")) {
+                                SyncClassification.C
+                            } else if (uploadResult.reason.contains("COMPANY") || uploadResult.reason.contains("WORKSPACE")) {
+                                SyncClassification.F
+                            } else {
+                                SyncClassification.D
+                            }
+                            Log.w("SYNC_QUEUE_TRACE", """
+                                [SYNC_QUEUE_ITEM]
+                                operation UUID: $operationUuid
+                                entity/table type: $entityType
+                                operation type: $operationType
+                                company/workspace ID: $canonicalCompanyId
+                                retry count: 1
+                                last attempt timestamp: $lastAttemptTs
+                                last error: Blocked: ${uploadResult.reason}
+                                HTTP status: 403
+                                server response: MUTATION_BLOCKED
+                                classification: ${classification.code} - ${classification.title}
+                            """.trimIndent())
+
+                            blockedUploads++
+                            dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                            syncDetails.add(
+                                SyncItemDetail(
+                                    operationUuid = operationUuid,
+                                    entityType = entityType,
+                                    operationType = operationType,
+                                    companyId = canonicalCompanyId,
+                                    retryCount = 1,
+                                    lastAttemptTimestamp = lastAttemptTs,
+                                    lastError = "Blocked: ${uploadResult.reason}",
+                                    httpStatus = 403,
+                                    serverResponse = "MUTATION_BLOCKED",
+                                    classification = classification,
+                                    failureReasonDescription = classification.descriptionFa + " (${uploadResult.reason})"
+                                )
+                            )
+                        }
+                        is UploadRecordResult.HttpError -> {
+                            val classification = when (uploadResult.httpCode) {
+                                401, 403 -> SyncClassification.D
+                                409 -> SyncClassification.E
+                                500, 502, 503, 504 -> SyncClassification.B
+                                else -> SyncClassification.H
+                            }
+                            Log.e("SYNC_QUEUE_TRACE", """
+                                [SYNC_QUEUE_ITEM]
+                                operation UUID: $operationUuid
+                                entity/table type: $entityType
+                                operation type: $operationType
+                                company/workspace ID: $canonicalCompanyId
+                                retry count: 1
+                                last attempt timestamp: $lastAttemptTs
+                                last error: HTTP ${uploadResult.httpCode} ${uploadResult.body}
+                                HTTP status: ${uploadResult.httpCode}
+                                server response: ${uploadResult.body}
+                                classification: ${classification.code} - ${classification.title}
+                            """.trimIndent())
+
+                            if (classification == SyncClassification.B) {
+                                retryingUploads++
+                            } else {
+                                failedUploads++
+                            }
+                            dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                            syncDetails.add(
+                                SyncItemDetail(
+                                    operationUuid = operationUuid,
+                                    entityType = entityType,
+                                    operationType = operationType,
+                                    companyId = canonicalCompanyId,
+                                    retryCount = 1,
+                                    lastAttemptTimestamp = lastAttemptTs,
+                                    lastError = "HTTP ${uploadResult.httpCode}: ${uploadResult.body}",
+                                    httpStatus = uploadResult.httpCode,
+                                    serverResponse = uploadResult.body,
+                                    classification = classification,
+                                    failureReasonDescription = classification.descriptionFa + " (HTTP ${uploadResult.httpCode})"
+                                )
+                            )
+                        }
+                        is UploadRecordResult.NetworkError -> {
+                            val classification = SyncClassification.B
+                            val errMsg = uploadResult.exception.message ?: "Network error"
+                            Log.e("SYNC_QUEUE_TRACE", """
+                                [SYNC_QUEUE_ITEM]
+                                operation UUID: $operationUuid
+                                entity/table type: $entityType
+                                operation type: $operationType
+                                company/workspace ID: $canonicalCompanyId
+                                retry count: 1
+                                last attempt timestamp: $lastAttemptTs
+                                last error: $errMsg
+                                HTTP status: 0
+                                server response: NETWORK_FAILURE
+                                classification: ${classification.code} - ${classification.title}
+                            """.trimIndent())
+
+                            retryingUploads++
+                            dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                            syncDetails.add(
+                                SyncItemDetail(
+                                    operationUuid = operationUuid,
+                                    entityType = entityType,
+                                    operationType = operationType,
+                                    companyId = canonicalCompanyId,
+                                    retryCount = 1,
+                                    lastAttemptTimestamp = lastAttemptTs,
+                                    lastError = errMsg,
+                                    httpStatus = 0,
+                                    serverResponse = "NETWORK_FAILURE",
+                                    classification = classification,
+                                    failureReasonDescription = classification.descriptionFa + ": " + errMsg
+                                )
+                            )
+                        }
                     }
                 } catch (e: Exception) {
-                    Log.e("SyncEngine", "[Upload] Failed to upload local record: ${meta.entityType}_${meta.entityId}", e)
-                    consecutiveFailures++
+                    val classification = SyncClassification.G
+                    val errMsg = e.message ?: "Unexpected exception"
+                    Log.e("SYNC_QUEUE_TRACE", """
+                        [SYNC_QUEUE_ITEM]
+                        operation UUID: $operationUuid
+                        entity/table type: $entityType
+                        operation type: $operationType
+                        company/workspace ID: $canonicalCompanyId
+                        retry count: 1
+                        last attempt timestamp: $lastAttemptTs
+                        last error: $errMsg
+                        HTTP status: 0
+                        server response: EXCEPTION
+                        classification: ${classification.code} - ${classification.title}
+                    """.trimIndent(), e)
+
+                    failedUploads++
                     dao.insertSyncMetadata(meta.copy(syncStatus = "Failed"))
+                    syncDetails.add(
+                        SyncItemDetail(
+                            operationUuid = operationUuid,
+                            entityType = entityType,
+                            operationType = operationType,
+                            companyId = canonicalCompanyId,
+                            retryCount = 1,
+                            lastAttemptTimestamp = lastAttemptTs,
+                            lastError = errMsg,
+                            httpStatus = 0,
+                            serverResponse = "EXCEPTION",
+                            classification = classification,
+                            failureReasonDescription = classification.descriptionFa + ": " + errMsg
+                        )
+                    )
                 }
             }
+
+            val summary = SyncSummary(
+                total = totalPendingCount,
+                successful = successfulUploads,
+                pending = pendingMetadata.count { it.syncStatus == "Pending" },
+                retrying = retryingUploads,
+                failed = failedUploads,
+                blocked = blockedUploads,
+                details = syncDetails
+            )
+            _syncSummary.value = summary
+            Log.i("SYNC_SUMMARY", """
+                [SYNC_SUMMARY]
+                total: ${summary.total}
+                successful: ${summary.successful}
+                pending: ${summary.pending}
+                retrying: ${summary.retrying}
+                failed: ${summary.failed}
+                blocked: ${summary.blocked}
+            """.trimIndent())
 
             // 3. Pull remote changes from the Real Cloud Database
             Log.i("SyncEngine", "[Download] Fetching cloud records for company $companyId")
@@ -526,7 +823,7 @@ class SyncEngine @JvmOverloads constructor(
                     dao.getPrescriptionByUuid(entityId)?.let { SyncSerializer.serialize(entityType, it) }
                 }
                 "DashboardCache" -> {
-                    dao.getDashboardCacheByUuid(entityId)?.let { SyncSerializer.serialize(entityType, it) }
+                    (dao.getDashboardCacheByKey(entityId) ?: dao.getDashboardCacheByUuid(entityId))?.let { SyncSerializer.serialize(entityType, it) }
                 }
                 "FixedExpenseTemplate" -> {
                     dao.getFixedExpenseTemplateByUuid(entityId)?.let { SyncSerializer.serialize(entityType, it) }
@@ -616,7 +913,10 @@ class SyncEngine @JvmOverloads constructor(
             "WoundRecord" -> dao.getWoundRecordByUuid(entityId)?.let { dao.deleteWoundRecord(it) }
             "ConsentForm" -> dao.getConsentFormByUuid(entityId)?.let { dao.deleteConsentForm(it) }
             "Prescription" -> dao.getPrescriptionByUuid(entityId)?.let { dao.deletePrescription(it) }
-            "DashboardCache" -> dao.deleteDashboardCacheByUuid(entityId)
+            "DashboardCache" -> {
+                dao.deleteDashboardCacheByKey(entityId)
+                dao.deleteDashboardCacheByUuid(entityId)
+            }
             "FixedExpenseTemplate" -> dao.getFixedExpenseTemplateByUuid(entityId)?.let { dao.deleteFixedExpenseTemplate(it) }
             "ExpenseCategory" -> dao.getExpenseCategoryByUuid(entityId)?.let { dao.deleteExpenseCategory(it) }
             "ConnectedDevice" -> dao.deleteConnectedDevice(entityId)

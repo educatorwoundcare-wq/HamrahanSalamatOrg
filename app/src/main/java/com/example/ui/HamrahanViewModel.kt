@@ -360,6 +360,7 @@ class HamrahanViewModel @JvmOverloads constructor(
     val syncing: StateFlow<Boolean> = repository.syncEngine?.syncing ?: MutableStateFlow(false)
     val lastSyncTime: StateFlow<Long> = repository.syncEngine?.lastSyncTime ?: MutableStateFlow(0L)
     val pendingChangesCount: StateFlow<Int> = repository.syncEngine?.pendingChangesCount ?: MutableStateFlow(0)
+    val syncSummary: StateFlow<com.example.data.SyncSummary?> = repository.syncEngine?.syncSummary ?: MutableStateFlow(null)
 
     fun setOnline(online: Boolean) {
         repository.syncEngine?.setOnline(online)
@@ -980,6 +981,8 @@ class HamrahanViewModel @JvmOverloads constructor(
     fun createCompanyWorkspace(name: String, nationalCode: String, phone: String, address: String) {
         if (_isCreatingCompany.value) return
         _isCreatingCompany.value = true
+        companyJoinError.value = null
+        companyJoinSuccess.value = null
         viewModelScope.launch {
             try {
                 // Purge all old local offline dummy accounts first
@@ -989,163 +992,99 @@ class HamrahanViewModel @JvmOverloads constructor(
 
                 // Step 1: Ensure valid auth session first
                 repository.cloudClient.ensureAuthSession()
-                val currentToken = workspaceManager.currentAuthToken
+                var currentToken = workspaceManager.currentAuthToken
                 var authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
 
                 if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
                     val authResult = supabaseAuthRepository.signInAnonymously("", "")
                     if (authResult !is com.example.data.supabase.AuthResult.Success) {
-                        Log.e("WorkspaceCreation", "Step 1 FAIL: Auth error")
-                        companyJoinError.value = "خطای سرور ابری در برقراری نشست امن. لطفاً اتصال اینترنت را بررسی فرمایید."
+                        val errMsg = when (authResult) {
+                            is com.example.data.supabase.AuthResult.Error -> "خطای احراز هویت: ${authResult.message}"
+                            is com.example.data.supabase.AuthResult.NetworkError -> "خطای شبکه در احراز هویت: ${authResult.exception.localizedMessage}"
+                            else -> "خطای سرور ابری در برقراری نشست امن."
+                        }
+                        Log.e("CREATE_OFFICE_01", "[CREATE_OFFICE_01]\nauth session exists: false\nauthUid: NONE\ntokenPresent=false")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Auth session failed: $errMsg")
+                        companyJoinError.value = errMsg
                         return@launch
                     }
-                    authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken)
+                    currentToken = workspaceManager.currentAuthToken
+                    authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
                 }
 
+                val tokenPresent = !currentToken.isNullOrBlank()
+                val authSessionExists = tokenPresent && !authUid.isNullOrBlank()
+
+                Log.i("CREATE_OFFICE_01", "[CREATE_OFFICE_01]\nauth session exists: $authSessionExists\nauthUid: ${authUid ?: "NONE"}\ntokenPresent=$tokenPresent")
+
                 if (authUid.isNullOrBlank()) {
-                    Log.e("WorkspaceCreation", "Step 1 FAIL: No authUid retrieved")
+                    Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: No authUid retrieved")
                     companyJoinError.value = "شناسه امنیتی کاربر دریافت نشد. ساخت مرکز لغو شد."
                     return@launch
                 }
 
-                // Step 2: Identify local and remote workspace identity candidates
-                val localCompanyId = workspaceManager.currentTenantId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
-                    ?: repository.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
-                val localSyncCode = workspaceManager.currentSyncCode?.takeIf { it.isNotBlank() && it != "HAMRAHAN-LOCAL-WORK" }
-                    ?: repository.getSystemSettingByKey("company_sync_code")?.takeIf { it.isNotBlank() && it != "HAMRAHAN-LOCAL-WORK" }
+                // Step 2: Generate NEW canonical company_id and sync_code (NEVER reuse existing workspace on Create)
+                val generatedCompanyId = "COMP-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
+                val generatedSyncCode = "HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()
 
-                var resolvedCompanyId: String? = null
-                var resolvedSyncCode: String? = null
+                Log.i("CREATE_OFFICE_02", "[CREATE_OFFICE_02]\nrequested operation = CREATE_NEW_OFFICE\ncenterName: $name\ngeneratedCompanyId: $generatedCompanyId\ngeneratedSyncCode: $generatedSyncCode")
 
-                // DECISION TREE EVALUATION (R23 Canonical Workspace Identity Recovery)
-                if (localCompanyId.isNullOrBlank()) {
-                    // CASE A: authUid exists + no local company_id
-                    val myWorkspaces = repository.cloudClient.getMyWorkspaces()
-                    val canonical = myWorkspaces.firstOrNull { it.centerName == name } ?: myWorkspaces.firstOrNull()
-                    if (canonical != null) {
-                        resolvedCompanyId = canonical.companyId
-                        resolvedSyncCode = canonical.companySyncCode
-                        Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=null localSyncCode=null remoteCreatorUid=${canonical.creatorUid} decision=RECOVER_EXISTING_WORKSPACE")
-                    } else {
-                        resolvedCompanyId = "COMP-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
-                        resolvedSyncCode = "HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()
-                        Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=null localSyncCode=null remoteCreatorUid=null decision=CREATE_NEW_WORKSPACE")
-                    }
-                } else {
-                    // CASE B: authUid exists + local company_id exists -> Fetch remote workspace
-                    val remoteWorkspace = repository.cloudClient.getWorkspaceInfo(localCompanyId)
-                    val remoteCreatorUid = remoteWorkspace?.creatorUid
+                // Step 3: Diagnostic fetch of workspaces (DO NOT AUTO-SELECT)
+                val myWorkspaces = repository.cloudClient.getMyWorkspaces()
+                Log.i("CREATE_OFFICE_03", "[CREATE_OFFICE_03]\ngetMyWorkspaces result count: ${myWorkspaces.size}")
 
-                    if (remoteWorkspace != null && (remoteCreatorUid == null || remoteCreatorUid == authUid)) {
-                        // CASE C: remote workspace exists AND remote.creator_uid == authUid
-                        // ACCEPT canonical workspace. Preserve company_id and sync_code. Never generate replacement IDs.
-                        resolvedCompanyId = localCompanyId
-                        resolvedSyncCode = remoteWorkspace.companySyncCode.ifBlank { localSyncCode ?: ("HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()) }
-                        Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompanyId localSyncCode=$localSyncCode remoteCreatorUid=$remoteCreatorUid decision=RECOVER_EXISTING_WORKSPACE")
-                    } else if (remoteWorkspace != null && remoteCreatorUid != authUid) {
-                        // CASE D: remote workspace exists AND remote.creator_uid != authUid
-                        // DO NOT overwrite. Determine whether local identity is stale.
-                        // Stale local workspace identity detected!
-                        // Clear ONLY stale local workspace identity metadata without wiping user records.
-                        Log.w("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompanyId localSyncCode=$localSyncCode remoteCreatorUid=$remoteCreatorUid decision=STALE_LOCAL_IDENTITY")
-                        repository.clearStaleWorkspaceIdentity()
+                // Step 4: Selected canonical workspace (NONE - fresh creation)
+                Log.i("CREATE_OFFICE_04", "[CREATE_OFFICE_04]\nselected canonical workspace: NONE\ncompanyId: $generatedCompanyId")
 
-                        // Check if current user already owns another workspace on remote
-                        val myWorkspaces = repository.cloudClient.getMyWorkspaces()
-                        val canonical = myWorkspaces.firstOrNull { it.centerName == name } ?: myWorkspaces.firstOrNull()
-                        if (canonical != null) {
-                            resolvedCompanyId = canonical.companyId
-                            resolvedSyncCode = canonical.companySyncCode
-                            Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=null localSyncCode=null remoteCreatorUid=${canonical.creatorUid} decision=RECOVER_EXISTING_WORKSPACE")
-                        } else {
-                            resolvedCompanyId = "COMP-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
-                            resolvedSyncCode = "HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()
-                            Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=null localSyncCode=null remoteCreatorUid=null decision=CREATE_NEW_WORKSPACE")
-                        }
-                    } else {
-                        // CASE E: local company_id exists but remote workspace does not exist
-                        val myWorkspaces = repository.cloudClient.getMyWorkspaces()
-                        val canonical = myWorkspaces.firstOrNull { it.centerName == name } ?: myWorkspaces.firstOrNull()
-                        if (canonical != null) {
-                            resolvedCompanyId = canonical.companyId
-                            resolvedSyncCode = canonical.companySyncCode
-                            Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompanyId localSyncCode=$localSyncCode remoteCreatorUid=${canonical.creatorUid} decision=RECOVER_EXISTING_WORKSPACE")
-                        } else {
-                            resolvedCompanyId = localCompanyId
-                            resolvedSyncCode = localSyncCode ?: ("HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase())
-                            Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompanyId localSyncCode=$localSyncCode remoteCreatorUid=null decision=CREATE_NEW_WORKSPACE")
-                        }
-                    }
-                }
+                // Step 5: saveWorkspaceInfoDetailed START
+                Log.i("CREATE_OFFICE_05", "[CREATE_OFFICE_05]\nsaveWorkspaceInfoDetailed START\ncompanyId: $generatedCompanyId\nsyncCode: $generatedSyncCode")
 
-                val finalCompanyId = resolvedCompanyId!!
-                val finalSyncCode = resolvedSyncCode!!
-
-                // Update workspace manager with resolved workspace info
-                workspaceManager.updateTenantAndSyncCode(finalCompanyId, finalSyncCode)
-
-                // Step 3: Remote Workspace Creation on Supabase
                 val workspaceInfo = WorkspaceInfo(
-                    companyId = finalCompanyId,
-                    companySyncCode = finalSyncCode,
+                    companyId = generatedCompanyId,
+                    companySyncCode = generatedSyncCode,
                     centerName = name,
                     nationalCode = nationalCode,
                     supportPhone = phone,
                     centerAddress = address,
-                    createdTimestamp = System.currentTimeMillis()
+                    createdTimestamp = System.currentTimeMillis(),
+                    creatorUid = authUid
                 )
 
-                var saveResult = repository.cloudClient.saveWorkspaceInfoDetailed(finalCompanyId, workspaceInfo)
+                val saveResult = repository.cloudClient.saveWorkspaceInfoDetailed(generatedCompanyId, workspaceInfo)
 
-                // Fallback handling if OwnershipMismatch occurs on save
-                if (saveResult is WorkspaceSaveResult.OwnershipMismatch) {
-                    Log.w("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$finalCompanyId localSyncCode=$finalSyncCode remoteCreatorUid=${saveResult.remoteCreatorUid} decision=HANDLE_OWNERSHIP_MISMATCH_RETRY_NEW_WORKSPACE")
-                    repository.clearStaleWorkspaceIdentity()
-
-                    val fallbackCompanyId = "COMP-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
-                    val fallbackSyncCode = "HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()
-                    workspaceManager.updateTenantAndSyncCode(fallbackCompanyId, fallbackSyncCode)
-
-                    val fallbackWorkspaceInfo = workspaceInfo.copy(
-                        companyId = fallbackCompanyId,
-                        companySyncCode = fallbackSyncCode
-                    )
-                    saveResult = repository.cloudClient.saveWorkspaceInfoDetailed(fallbackCompanyId, fallbackWorkspaceInfo)
-                }
-
+                // Step 6: saveWorkspaceInfoDetailed RESULT
                 when (saveResult) {
                     is WorkspaceSaveResult.Success -> {
-                        Log.i("WorkspaceCreation", "Step 3 SUCCESS: Remote workspace persisted on Supabase")
+                        Log.i("CREATE_OFFICE_06", "[CREATE_OFFICE_06]\nsaveWorkspaceInfoDetailed RESULT\nHTTP status: ${saveResult.httpStatus}\nsuccess/failure: SUCCESS\nreturned companyId: ${saveResult.companyId}\nreturned syncCode: ${saveResult.syncCode}\nerror code: 0\nerror message: NONE")
                     }
                     is WorkspaceSaveResult.OwnershipMismatch -> {
-                        Log.e("WorkspaceCreation", "Step 3 FAIL: Ownership mismatch for companyId=${saveResult.companyId} (currentAuthUid=${saveResult.currentAuthUid})")
-                        companyJoinError.value = "شناسه مرکز قبلاً توسط کاربر دیگری ثبت شده است (عدم تطابق مالکیت)."
+                        Log.e("CREATE_OFFICE_06", "[CREATE_OFFICE_06]\nsaveWorkspaceInfoDetailed RESULT\nHTTP status: ${saveResult.httpStatus}\nsuccess/failure: FAILURE\nreturned companyId: ${saveResult.companyId}\nreturned syncCode: \nerror code: 403\nerror message: Ownership mismatch (remoteCreatorUid=${saveResult.remoteCreatorUid})")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Ownership mismatch for companyId=${saveResult.companyId}")
+                        companyJoinError.value = "شناسه مرکز ($generatedCompanyId) در سرور متعلق به حساب دیگری است (کد ۴۰۳)."
                         return@launch
                     }
                     is WorkspaceSaveResult.NoToken -> {
-                        Log.e("WorkspaceCreation", "Step 3 FAIL: No token available")
+                        Log.e("CREATE_OFFICE_06", "[CREATE_OFFICE_06]\nsaveWorkspaceInfoDetailed RESULT\nHTTP status: 401\nsuccess/failure: FAILURE\nreturned companyId: ${saveResult.companyId}\nreturned syncCode: ${saveResult.syncCode}\nerror code: 401\nerror message: No token available")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: No token available")
                         companyJoinError.value = "توکن نشست منقضی یا نامعتبر است. لطفاً مجدداً تلاش نمایید."
                         return@launch
                     }
                     is WorkspaceSaveResult.Error -> {
-                        Log.e("WorkspaceCreation", "Step 3 FAIL: HTTP ${saveResult.code}: ${saveResult.message}")
+                        Log.e("CREATE_OFFICE_06", "[CREATE_OFFICE_06]\nsaveWorkspaceInfoDetailed RESULT\nHTTP status: ${saveResult.code}\nsuccess/failure: FAILURE\nreturned companyId: ${saveResult.companyId}\nreturned syncCode: ${saveResult.syncCode}\nerror code: ${saveResult.code}\nerror message: ${saveResult.message}")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: HTTP ${saveResult.code}: ${saveResult.message}")
                         companyJoinError.value = "خطای ثبت دفتر در سرور ابری (کد ${saveResult.code}): ${saveResult.message}"
                         return@launch
                     }
                     is WorkspaceSaveResult.NetworkError -> {
-                        Log.e("WorkspaceCreation", "Step 3 FAIL: Network Exception", saveResult.exception)
+                        Log.e("CREATE_OFFICE_06", "[CREATE_OFFICE_06]\nsaveWorkspaceInfoDetailed RESULT\nHTTP status: 0\nsuccess/failure: FAILURE\nreturned companyId: ${saveResult.companyId}\nreturned syncCode: ${saveResult.syncCode}\nerror code: -1\nerror message: ${saveResult.exception.localizedMessage}")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Network error: ${saveResult.exception.localizedMessage}")
                         companyJoinError.value = "خطای شبکه هنگام ثبت دفتر در سرور ابری: ${saveResult.exception.localizedMessage}"
                         return@launch
                     }
                 }
 
-                val effectiveCompanyId = workspaceManager.currentTenantId ?: finalCompanyId
-                val effectiveSyncCode = workspaceManager.currentSyncCode ?: finalSyncCode
-
-                // Step 4: Register / Bootstrap Connected Device on Supabase
-                Log.i("WorkspaceCreation", "Step 4: Registering bootstrap Mother Account device on Supabase")
-                val existingDevId = repository.getSystemSettingByKey("active_device_id")
-                val devId = if (!existingDevId.isNullOrBlank()) existingDevId else "DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
+                // Step 7: registerDeviceDetailed START
+                val devId = DeviceIdentityProvider.syncWithRoomDatabase(repository.context, repository.dao)
 
                 val selfDevice = ConnectedDevice(
                     deviceId = devId,
@@ -1158,55 +1097,93 @@ class HamrahanViewModel @JvmOverloads constructor(
                     uid = authUid,
                     role = "Mother Account",
                     lastSeen = System.currentTimeMillis(),
-                    companyId = effectiveCompanyId,
+                    companyId = generatedCompanyId,
                     requestedRole = "Mother Account"
                 )
 
-                val deviceRegSuccess = repository.cloudClient.registerDevice(effectiveCompanyId, selfDevice)
-                if (!deviceRegSuccess) {
-                    Log.e("WorkspaceCreation", "Step 4 FAIL: Failed to register bootstrap device on Supabase")
-                    companyJoinError.value = "خطا در ثبت دستگاه سرپرست در سرور ابری. لطفاً اتصال اینترنت را بررسی نموده و مجدداً تلاش نمایید."
+                Log.i("DEVICE_REGISTRATION", "[DEVICE_REGISTRATION]\ndeviceId=$devId\ncompanyId=$generatedCompanyId\nrole=Mother Account\nstatus=Active")
+                Log.i("CREATE_OFFICE_07", "[CREATE_OFFICE_07]\nregisterDeviceDetailed START\ndeviceId: $devId\ncompanyId: $generatedCompanyId\nuid: $authUid\nrole: Mother Account\nstatus: Active")
+
+                // Step 8: registerDeviceDetailed RESULT
+                val deviceRegResult = repository.cloudClient.registerDeviceDetailed(generatedCompanyId, selfDevice)
+                when (deviceRegResult) {
+                    is DeviceRegistrationResult.Success -> {
+                        Log.i("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${deviceRegResult.httpStatus}\nresult=Success")
+                        Log.i("CREATE_OFFICE_08", "[CREATE_OFFICE_08]\nregisterDeviceDetailed RESULT\nHTTP status: ${deviceRegResult.httpStatus}\nsuccess/failure: SUCCESS\nerror code: 0\nerror message: NONE")
+                    }
+                    is DeviceRegistrationResult.PendingAccepted -> {
+                        Log.i("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${deviceRegResult.httpStatus}\nresult=PendingAccepted")
+                        Log.i("CREATE_OFFICE_08", "[CREATE_OFFICE_08]\nregisterDeviceDetailed RESULT\nHTTP status: ${deviceRegResult.httpStatus}\nsuccess/failure: SUCCESS (PENDING)\nerror code: 0\nerror message: ${deviceRegResult.message}")
+                    }
+                    is DeviceRegistrationResult.Error -> {
+                        Log.e("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${deviceRegResult.code}\nresult=Error")
+                        Log.e("CREATE_OFFICE_08", "[CREATE_OFFICE_08]\nregisterDeviceDetailed RESULT\nHTTP status: ${deviceRegResult.code}\nsuccess/failure: FAILURE\nerror code: ${deviceRegResult.code}\nerror message: ${deviceRegResult.message}")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Device registration failed (${deviceRegResult.code}): ${deviceRegResult.message}")
+                        companyJoinError.value = "خطا در ثبت دستگاه سرپرست در سرور ابری (کد ${deviceRegResult.code}): ${deviceRegResult.message}"
+                        return@launch
+                    }
+                    is DeviceRegistrationResult.NetworkError -> {
+                        Log.e("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=0\nresult=NetworkError")
+                        Log.e("CREATE_OFFICE_08", "[CREATE_OFFICE_08]\nregisterDeviceDetailed RESULT\nHTTP status: 0\nsuccess/failure: FAILURE\nerror code: -1\nerror message: ${deviceRegResult.exception.localizedMessage}")
+                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Device registration network error: ${deviceRegResult.exception.localizedMessage}")
+                        companyJoinError.value = "خطای شبکه در ثبت دستگاه سرپرست: ${deviceRegResult.exception.localizedMessage}"
+                        return@launch
+                    }
+                }
+
+                // Step 9: Room transaction START
+                Log.i("CREATE_OFFICE_09", "[CREATE_OFFICE_09]\nRoom transaction START")
+                try {
+                    val settings = listOf(
+                        SystemSetting("company_name", name),
+                        SystemSetting("center_name", name),
+                        SystemSetting("national_code", nationalCode),
+                        SystemSetting("company_national_code", nationalCode),
+                        SystemSetting("support_phone", phone),
+                        SystemSetting("company_phone", phone),
+                        SystemSetting("center_address", address),
+                        SystemSetting("company_address", address),
+                        SystemSetting("company_id", generatedCompanyId),
+                        SystemSetting("company_sync_code", generatedSyncCode),
+                        SystemSetting("company_is_setup", "true"),
+                        SystemSetting("active_device_id", devId),
+                        SystemSetting("active_device_name", "تلفن مدیرعامل (سرپرست مرکز)"),
+                        SystemSetting("active_device_role", "Mother Account"),
+                        SystemSetting("device_has_been_approved", "true"),
+                        SystemSetting("active_device_status", "Active")
+                    )
+                    for (s in settings) {
+                        repository.insertSystemSetting(s)
+                    }
+
+                    repository.dao.insertConnectedDevice(selfDevice)
+                    repository.registerLocalChange("ConnectedDevice", selfDevice.deviceId)
+
+                    // Reindex existing records to new company ID
+                    repository.reindexWorkspaceData(generatedCompanyId)
+
+                    // Enable online sync status
+                    setOnline(true)
+
+                    // Step 10: Room transaction RESULT
+                    Log.i("CREATE_OFFICE_10", "[CREATE_OFFICE_10]\nRoom transaction RESULT: SUCCESS")
+                } catch (roomEx: Exception) {
+                    Log.e("CREATE_OFFICE_10", "[CREATE_OFFICE_10]\nRoom transaction RESULT: FAILURE (${roomEx.localizedMessage})", roomEx)
+                    Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Room transaction error: ${roomEx.localizedMessage}")
+                    companyJoinError.value = "خطا در ثبت اطلاعات محلی مرکز: ${roomEx.localizedMessage}"
                     return@launch
                 }
-                Log.i("WorkspaceCreation", "Step 4 SUCCESS: Bootstrap device registered on Supabase")
 
-                // Step 5: ONLY NOW Commit Local Room Workspace State
-                Log.i("WorkspaceCreation", "Step 5: Committing local Room workspace state")
-                val settings = listOf(
-                    SystemSetting("company_name", name),
-                    SystemSetting("center_name", name),
-                    SystemSetting("national_code", nationalCode),
-                    SystemSetting("company_national_code", nationalCode),
-                    SystemSetting("support_phone", phone),
-                    SystemSetting("company_phone", phone),
-                    SystemSetting("center_address", address),
-                    SystemSetting("company_address", address),
-                    SystemSetting("company_id", effectiveCompanyId),
-                    SystemSetting("company_sync_code", effectiveSyncCode),
-                    SystemSetting("company_is_setup", "true"),
-                    SystemSetting("active_device_id", devId),
-                    SystemSetting("active_device_name", "تلفن مدیرعامل (سرپرست مرکز)"),
-                    SystemSetting("active_device_role", "Mother Account"),
-                    SystemSetting("device_has_been_approved", "true"),
-                    SystemSetting("active_device_status", "Active")
-                )
-                for (s in settings) {
-                    repository.insertSystemSetting(s)
-                }
+                // Step 11: WorkspaceManager.saveIdentity
+                Log.i("CREATE_OFFICE_11", "[CREATE_OFFICE_11]\nWorkspaceManager.saveIdentity\ntenantId: $generatedCompanyId\nsyncCode: $generatedSyncCode")
+                workspaceManager.saveIdentity(generatedCompanyId, generatedSyncCode, currentToken ?: "", authUid)
 
-                repository.dao.insertConnectedDevice(selfDevice)
-                repository.registerLocalChange("ConnectedDevice", selfDevice.deviceId)
+                // Step 12: FINAL RESULT
+                Log.i("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT\nSUCCESS\nexact reason: Workspace $generatedCompanyId created and bootstrap device $devId registered successfully")
 
-                // Reindex existing records to new company ID
-                repository.reindexWorkspaceData(effectiveCompanyId)
-
-                // Enable online sync status
-                setOnline(true)
-
-                Log.i("WorkspaceCreation", "Step 6: Workspace creation complete! companyId=$effectiveCompanyId")
-                companyJoinSuccess.value = "شناسنامه مرکز با موفقیت در سرور ابری ساخته شد. کد همگام‌سازی: $effectiveSyncCode"
+                companyJoinSuccess.value = "شناسنامه مرکز با موفقیت در سرور ابری ساخته شد. کد همگام‌سازی: $generatedSyncCode"
             } catch (e: Exception) {
-                Log.e("WorkspaceCreation", "Unexpected error during workspace creation", e)
+                Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Unexpected exception: ${e.localizedMessage}", e)
                 companyJoinError.value = "خطا در ساخت پروفایل مرکز: ${e.localizedMessage}"
             } finally {
                 _isCreatingCompany.value = false
@@ -1217,60 +1194,80 @@ class HamrahanViewModel @JvmOverloads constructor(
     fun joinCompanyWorkspace(code: String, phone: String) {
         viewModelScope.launch {
             try {
-                val cleanCode = code.trim().uppercase()
-                if (cleanCode.isBlank()) {
+                companyJoinError.value = null
+                companyJoinSuccess.value = null
+
+                val normalizedSyncCode = code.trim().uppercase(java.util.Locale.ROOT)
+                if (normalizedSyncCode.isBlank()) {
                     companyJoinError.value = "کد همگام‌سازی نمی‌تواند خالی باشد."
                     return@launch
                 }
-                val devId = repository.getSystemSettingByKey("active_device_id") ?: ("DEV-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase())
 
-                // Resolve target workspace from cloud by sync code
-                val remoteWorkspace = repository.cloudClient.getWorkspaceBySyncCode(cleanCode)
-                if (remoteWorkspace == null) {
-                    Log.w("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_FAILED] syncCode=$cleanCode remote workspace not found or inaccessible")
-                    companyJoinError.value = "کد همگام‌سازی نامعتبر است یا دفتری با این کد در سرور ابری یافت نشد."
-                    return@launch
-                }
-                val companyId = remoteWorkspace.companyId
-                val centerName = remoteWorkspace.centerName.ifBlank { "مرکز همگام‌سازی ($cleanCode)" }
-                Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_SUCCESS] syncCode=$cleanCode canonicalCompanyId=$companyId centerName=$centerName")
-
-                // Authenticate with Supabase Anonymously using Connection IDs
-                val authResult = supabaseAuthRepository.signInAnonymously(companyId, cleanCode)
-                if (authResult is com.example.data.supabase.AuthResult.Error) {
-                    companyJoinError.value = "خطای سرور ابری (سوپابیس): ${authResult.message}"
-                    return@launch
-                } else if (authResult is com.example.data.supabase.AuthResult.NetworkError) {
-                    companyJoinError.value = "خطای شبکه هنگام اتصال به سرور: ${authResult.exception.localizedMessage}"
-                    return@launch
-                }
-
-                val settings = listOf(
-                    SystemSetting("company_sync_code", cleanCode),
-                    SystemSetting("company_id", companyId),
-                    SystemSetting("company_name", centerName),
-                    SystemSetting("center_name", centerName),
-                    SystemSetting("support_phone", phone.trim()),
-                    SystemSetting("company_phone", phone.trim()),
-                    SystemSetting("company_is_setup", "true"),
-                    SystemSetting("active_device_id", devId),
-                    SystemSetting("active_device_role", "Staff"),
-                    SystemSetting("device_has_been_approved", "false"),
-                    SystemSetting("active_device_status", "Pending")
-                )
-                for (s in settings) {
-                    repository.insertSystemSetting(s)
-                }
-
-                // Enable online sync status
-                setOnline(true)
-
+                // Step 1: Ensure authenticated Supabase session exists
                 val workspaceManager = WorkspaceManager.getInstance(repository.context)
-                val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken) ?: ""
+                repository.cloudClient.ensureAuthSession()
+                var currentToken = workspaceManager.currentAuthToken
+                var authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
 
-                Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REQUEST_START] deviceId=$devId companyId=$companyId authUid=$authUid")
-                Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOCAL_REGISTER] deviceId=$devId companyId=$companyId status=Pending")
+                if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
+                    val authResult = supabaseAuthRepository.signInAnonymously("", "")
+                    if (authResult !is com.example.data.supabase.AuthResult.Success) {
+                        val errMsg = when (authResult) {
+                            is com.example.data.supabase.AuthResult.Error -> "خطای احراز هویت: ${authResult.message}"
+                            is com.example.data.supabase.AuthResult.NetworkError -> "خطای شبکه در احراز هویت: ${authResult.exception.localizedMessage}"
+                            else -> "خطای سرور ابری در برقراری نشست امن."
+                        }
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [AUTH_FAILED] $errMsg")
+                        companyJoinError.value = errMsg
+                        return@launch
+                    }
+                    currentToken = workspaceManager.currentAuthToken
+                    authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
+                }
 
+                val finalAuthUid = authUid ?: ""
+                if (finalAuthUid.isBlank()) {
+                    Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [AUTH_FAILED] No authUid retrieved")
+                    companyJoinError.value = "شناسه امنیتی کاربر دریافت نشد. اتصال به دفتر لغو شد."
+                    return@launch
+                }
+
+                // Step 2: Call resolve_workspace_by_sync_code RPC
+                Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_START] syncCode=$normalizedSyncCode authUid=$finalAuthUid")
+                val lookupResult = repository.cloudClient.resolveWorkspaceBySyncCodeDetailed(normalizedSyncCode)
+
+                val (canonicalCompanyId, centerName) = when (lookupResult) {
+                    is WorkspaceLookupResult.Success -> {
+                        val ws = lookupResult.workspace
+                        val cName = ws.centerName.ifBlank { "دفتر همگام‌سازی ($normalizedSyncCode)" }
+                        Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_SUCCESS] syncCode=$normalizedSyncCode canonicalCompanyId=${ws.companyId} centerName=$cName")
+                        Pair(ws.companyId, cName)
+                    }
+                    is WorkspaceLookupResult.NotFound -> {
+                        Log.w("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_NOT_FOUND] syncCode=$normalizedSyncCode httpStatus=${lookupResult.httpStatus}")
+                        companyJoinError.value = "دفتری با کد همگام‌سازی $normalizedSyncCode در سرور ابری یافت نشد (کد ${lookupResult.httpStatus})."
+                        return@launch
+                    }
+                    is WorkspaceLookupResult.Error -> {
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_ERROR] syncCode=$normalizedSyncCode code=${lookupResult.code} msg=${lookupResult.message}")
+                        companyJoinError.value = "خطای سرور ابری در جستجوی دفتر (کد ${lookupResult.code}): ${lookupResult.message}"
+                        return@launch
+                    }
+                    is WorkspaceLookupResult.NetworkError -> {
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_NETWORK_ERROR] syncCode=$normalizedSyncCode", lookupResult.exception)
+                        companyJoinError.value = "خطای شبکه هنگام جستجوی دفتر: ${lookupResult.exception.localizedMessage}"
+                        return@launch
+                    }
+                    is WorkspaceLookupResult.NoToken -> {
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_NO_TOKEN] syncCode=$normalizedSyncCode")
+                        companyJoinError.value = "نشست امن کاربری معتبر نیست. لطفاً مجدداً تلاش کنید."
+                        return@launch
+                    }
+                }
+
+                val devId = DeviceIdentityProvider.syncWithRoomDatabase(repository.context, repository.dao)
+
+                // Step 6 & 7: Register the second device as role=Staff, status=Pending
                 val selfDevice = ConnectedDevice(
                     deviceId = devId,
                     deviceName = "دستگاه همراه (پرسنل)",
@@ -1279,30 +1276,93 @@ class HamrahanViewModel @JvmOverloads constructor(
                     lastOnlineTime = System.currentTimeMillis(),
                     lastSuccessfulSync = 0L,
                     status = "Pending",
-                    uid = authUid,
+                    uid = finalAuthUid,
                     role = "Staff",
                     lastSeen = System.currentTimeMillis(),
-                    companyId = companyId,
+                    companyId = canonicalCompanyId,
                     requestedRole = "Staff"
                 )
+
+                Log.i("DEVICE_REGISTRATION", "[DEVICE_REGISTRATION]\ndeviceId=$devId\ncompanyId=$canonicalCompanyId\nrole=Staff\nstatus=Pending")
+                Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REGISTER_START] deviceId=$devId companyId=$canonicalCompanyId authUid=$finalAuthUid role=Staff status=Pending")
+                val regResult = repository.cloudClient.registerDeviceDetailed(canonicalCompanyId, selfDevice)
+                when (regResult) {
+                    is DeviceRegistrationResult.Success -> {
+                        Log.i("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${regResult.httpStatus}\nresult=Success")
+                        Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REGISTER_SUCCESS] deviceId=$devId companyId=$canonicalCompanyId httpStatus=${regResult.httpStatus}")
+                    }
+                    is DeviceRegistrationResult.PendingAccepted -> {
+                        Log.i("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${regResult.httpStatus}\nresult=PendingAccepted")
+                        Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REGISTER_PENDING_ACCEPTED] deviceId=$devId companyId=$canonicalCompanyId httpStatus=${regResult.httpStatus} msg=${regResult.message}")
+                    }
+                    is DeviceRegistrationResult.Error -> {
+                        Log.e("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${regResult.code}\nresult=Error")
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REGISTER_ERROR] deviceId=$devId code=${regResult.code} msg=${regResult.message}")
+                        companyJoinError.value = "خطا در ثبت دستگاه همراه در سرور ابری (کد ${regResult.code}): ${regResult.message}"
+                        return@launch
+                    }
+                    is DeviceRegistrationResult.NetworkError -> {
+                        Log.e("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=0\nresult=NetworkError")
+                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REGISTER_NETWORK_ERROR] deviceId=$devId", regResult.exception)
+                        companyJoinError.value = "خطای شبکه هنگام ثبت دستگاه در سرور ابری: ${regResult.exception.localizedMessage}"
+                        return@launch
+                    }
+                }
+
+                // Step 8: Persist locally with Pending status (NOT active until approved by Mother Account)
+                val settings = listOf(
+                    SystemSetting("company_sync_code", normalizedSyncCode),
+                    SystemSetting("company_id", canonicalCompanyId),
+                    SystemSetting("company_name", centerName),
+                    SystemSetting("center_name", centerName),
+                    SystemSetting("support_phone", phone.trim()),
+                    SystemSetting("company_phone", phone.trim()),
+                    SystemSetting("company_is_setup", "false"),
+                    SystemSetting("active_device_id", devId),
+                    SystemSetting("active_device_name", "دستگاه همراه (پرسنل)"),
+                    SystemSetting("active_device_role", "Staff"),
+                    SystemSetting("device_has_been_approved", "false"),
+                    SystemSetting("active_device_status", "Pending")
+                )
+                for (s in settings) {
+                    repository.insertSystemSetting(s)
+                }
+
                 repository.dao.insertConnectedDevice(selfDevice)
                 repository.registerLocalChange("ConnectedDevice", selfDevice.deviceId)
 
-                // Reindex local workspace to target companyId
-                repository.reindexWorkspaceData(companyId)
+                // Update tenant identity in workspace manager
+                workspaceManager.saveIdentity(canonicalCompanyId, normalizedSyncCode, currentToken ?: "", finalAuthUid)
+
+                // Reindex local workspace to target canonicalCompanyId
+                repository.reindexWorkspaceData(canonicalCompanyId)
+
+                // Enable online sync status
+                setOnline(true)
 
                 // Trigger immediate sync cycle to push registration request to cloud
                 triggerSync()
 
-                companyJoinSuccess.value = "درخواست اتصال به مرکز ($cleanCode) ارسال شد. لطفا از دستگاه مدیر مرکز تایید دسترسی را انجام دهید."
+                companyJoinSuccess.value = "دفتر «$centerName» شناسایی شد. درخواست اتصال دستگاه ارسال شد؛ لطفاً از دستگاه مدیر مرکز تأیید دسترسی را انجام دهید."
             } catch (e: Exception) {
+                Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [UNEXPECTED_ERROR]", e)
                 companyJoinError.value = "خطا در اتصال: ${e.localizedMessage}"
             }
         }
     }
 
-    fun switchActiveDevice(deviceId: String, deviceName: String) {
-        updateSystemSetting("active_device_id", deviceId)
+    fun updateActiveDeviceLabel(deviceName: String, role: String? = null) {
+        val canonicalDevId = DeviceIdentityProvider.getDeviceId(repository.context)
+        updateSystemSetting("active_device_id", canonicalDevId)
+        updateSystemSetting("active_device_name", deviceName)
+        if (!role.isNullOrBlank()) {
+            updateSystemSetting("active_device_role", role)
+        }
+    }
+
+    fun switchActiveDevice(legacyIdOrRole: String, deviceName: String) {
+        val canonicalDevId = DeviceIdentityProvider.getDeviceId(repository.context)
+        updateSystemSetting("active_device_id", canonicalDevId)
         updateSystemSetting("active_device_name", deviceName)
     }
 

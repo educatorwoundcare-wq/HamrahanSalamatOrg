@@ -743,15 +743,16 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                                 onDismissRequest = { showRoleMenu = false }
                             ) {
                                 listOf(
-                                    "DEVICE-CEO" to "تلفن مدیرعامل",
-                                    "DEVICE-MGR" to "تلفن مدیر داخلی",
-                                    "DEVICE-SEC" to "تبلت منشی",
-                                    "DEVICE-ACC" to "تلفن حسابدار"
-                                ).forEach { (id, name) ->
+                                    "تلفن مدیرعامل",
+                                    "تلفن مدیر داخلی",
+                                    "تبلت منشی",
+                                    "تلفن حسابدار",
+                                    "دستگاه همراه (پرسنل)"
+                                ).forEach { name ->
                                     DropdownMenuItem(
                                         text = { Text(name) },
                                         onClick = {
-                                            viewModel.switchActiveDevice(id, name)
+                                            viewModel.updateActiveDeviceLabel(name)
                                             showRoleMenu = false
                                             snackbarMessage = "هویت دستگاه به «$name» انتقال یافت. صف پیام‌ها همگام شد."
                                             showSuccessSnackbar = true

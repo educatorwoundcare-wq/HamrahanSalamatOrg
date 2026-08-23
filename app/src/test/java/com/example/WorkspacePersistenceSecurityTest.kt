@@ -117,7 +117,7 @@ class WorkspacePersistenceSecurityTest {
         assertFalse("Different creator_uid must NOT match attempting user UID", ownershipMatch)
 
         val result = if (ownershipMatch) {
-            WorkspaceSaveResult.Success
+            WorkspaceSaveResult.Success()
         } else {
             WorkspaceSaveResult.OwnershipMismatch(companyId, attemptingUserUid, "SAVE_WORKSPACE")
         }

@@ -100,6 +100,7 @@ fun SettingsScreen(viewModel: HamrahanViewModel) {
     val lastSyncTime by viewModel.lastSyncTime.collectAsState()
     
     val pendingChangesCount by viewModel.pendingChangesCount.collectAsState()
+    val syncSummary by viewModel.syncSummary.collectAsState()
     val isDeveloperMode by viewModel.isDeveloperMode.collectAsState()
     val userRole by viewModel.currentUserRole.collectAsState()
 
@@ -395,6 +396,63 @@ fun SettingsScreen(viewModel: HamrahanViewModel) {
                         
                         Text("آخرین همگام‌سازی موفق: $formattedTime", style = MaterialTheme.typography.bodySmall)
                         Text("تغییرات محلی آماده ارسال: $pendingChangesCount", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    }
+
+                    syncSummary?.let { summary ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("گزارش تحلیلی صف همگام‌سازی:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("کل: ${summary.total}", style = MaterialTheme.typography.bodySmall)
+                                    Text("موفق: ${summary.successful}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF10B981))
+                                    Text("در انتظار: ${summary.pending}", style = MaterialTheme.typography.bodySmall, color = Color(0xFFF59E0B))
+                                    Text("خطا/مسدود: ${summary.failed + summary.blocked}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                }
+
+                                if (summary.details.isNotEmpty()) {
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                    Text("علت باقی ماندن عملیات در صف:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    summary.details.take(5).forEach { detail ->
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                                                .padding(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    "${detail.entityType} (${detail.operationType})",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Text(
+                                                    "کلاس [${detail.classification.code}]",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (detail.classification.code == "B") Color(0xFFF59E0B) else MaterialTheme.colorScheme.error,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            Text(
+                                                detail.failureReasonDescription,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Button(

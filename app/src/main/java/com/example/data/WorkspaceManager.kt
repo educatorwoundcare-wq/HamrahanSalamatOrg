@@ -41,9 +41,15 @@ class WorkspaceManager private constructor(private val context: Context) {
 
     suspend fun saveIdentity(tenantId: String, syncCode: String, authToken: String, authUid: String? = null) {
         val resolvedUid = authUid ?: extractSubFromJwt(authToken)
+        val effectiveTenantId = if (tenantId.isNotBlank()) tenantId else (currentTenantId ?: "")
+        val effectiveSyncCode = if (syncCode.isNotBlank()) syncCode else (currentSyncCode ?: "")
         context.workspaceDataStore.edit { prefs ->
-            prefs[TENANT_ID_KEY] = tenantId
-            prefs[SYNC_CODE_KEY] = syncCode
+            if (effectiveTenantId.isNotBlank()) {
+                prefs[TENANT_ID_KEY] = effectiveTenantId
+            }
+            if (effectiveSyncCode.isNotBlank()) {
+                prefs[SYNC_CODE_KEY] = effectiveSyncCode
+            }
             prefs[AUTH_TOKEN_KEY] = authToken
             if (!resolvedUid.isNullOrBlank()) {
                 prefs[AUTH_UID_KEY] = resolvedUid
@@ -51,8 +57,8 @@ class WorkspaceManager private constructor(private val context: Context) {
                 prefs.remove(AUTH_UID_KEY)
             }
         }
-        currentTenantId = tenantId
-        currentSyncCode = syncCode
+        currentTenantId = effectiveTenantId.takeIf { it.isNotBlank() }
+        currentSyncCode = effectiveSyncCode.takeIf { it.isNotBlank() }
         currentAuthToken = authToken
         currentAuthUid = resolvedUid
     }
@@ -84,6 +90,8 @@ class WorkspaceManager private constructor(private val context: Context) {
         currentTenantId = tenantId
         currentSyncCode = syncCode
     }
+
+    fun getDeviceId(): String = DeviceIdentityProvider.getDeviceId(context)
 
     fun isTokenExpired(token: String?): Boolean {
         if (token.isNullOrBlank()) return true
