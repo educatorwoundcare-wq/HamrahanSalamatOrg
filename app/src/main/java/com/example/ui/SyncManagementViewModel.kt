@@ -73,9 +73,12 @@ class SyncManagementViewModel(
     }
 
     fun forceSync() {
-        // We can enqueue a one-time work request here, but for now we just 
-        // rely on the existing periodic worker or we can enqueue a new OneTimeWorkRequest.
-        val syncRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.data.SyncWorker>().build()
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+            .build()
+        val syncRequest = androidx.work.OneTimeWorkRequestBuilder<com.example.data.SyncWorker>()
+            .setConstraints(constraints)
+            .build()
         workManager.enqueueUniqueWork("ManualSync", androidx.work.ExistingWorkPolicy.REPLACE, syncRequest)
     }
 

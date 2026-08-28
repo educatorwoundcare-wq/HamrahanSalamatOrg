@@ -14,8 +14,6 @@ import com.example.data.HamrahanRepository
 import com.example.data.SyncEngine
 import com.example.data.SyncWorker
 import com.example.data.WorkspaceManager
-import com.example.data.auth.SessionManager
-import com.example.data.auth.TokenManager
 import java.util.concurrent.TimeUnit
 
 class AppContainer(val context: Context) {
@@ -25,14 +23,8 @@ class AppContainer(val context: Context) {
     val workspaceManager: WorkspaceManager by lazy {
         WorkspaceManager.getInstance(context)
     }
-    val tokenManager: TokenManager by lazy {
-        TokenManager(context, database.hamrahanDao())
-    }
-    val sessionManager: SessionManager by lazy {
-        SessionManager(tokenManager)
-    }
     val cloudClient: CloudClient by lazy {
-        CloudClient(dao = database.hamrahanDao(), context = context, sessionManager = sessionManager)
+        CloudClient(dao = database.hamrahanDao(), context = context)
     }
     val syncEngine: SyncEngine by lazy {
         SyncEngine(context, database.hamrahanDao(), cloudClient)
@@ -44,7 +36,7 @@ class AppContainer(val context: Context) {
         com.example.data.supabase.SupabaseAuthRepository(supabaseClientManager, workspaceManager)
     }
     val repository: HamrahanRepository by lazy {
-        HamrahanRepository(context, database.hamrahanDao(), syncEngine, cloudClient, sessionManager)
+        HamrahanRepository(context, database.hamrahanDao(), syncEngine, cloudClient)
     }
     val registerServiceAndGenerateLedgerUseCase: com.example.domain.usecase.RegisterServiceAndGenerateLedgerUseCase by lazy {
         com.example.domain.usecase.RegisterServiceAndGenerateLedgerUseCase(database.hamrahanDao(), syncEngine)

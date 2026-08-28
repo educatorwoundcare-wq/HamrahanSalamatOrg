@@ -19,6 +19,7 @@ class WorkspaceManager private constructor(private val context: Context) {
     private val SYNC_CODE_KEY = stringPreferencesKey("sync_code")
     private val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
     private val AUTH_UID_KEY = stringPreferencesKey("auth_uid")
+    private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
 
     @Volatile var currentTenantId: String? = null
         private set
@@ -28,6 +29,8 @@ class WorkspaceManager private constructor(private val context: Context) {
         private set
     @Volatile var currentAuthUid: String? = null
         private set
+    @Volatile var currentRefreshToken: String? = null
+        private set
 
     init {
         runBlocking {
@@ -36,10 +39,11 @@ class WorkspaceManager private constructor(private val context: Context) {
             currentSyncCode = WorkspaceSanitizer.getCanonicalSyncCode(prefs[SYNC_CODE_KEY])
             currentAuthToken = prefs[AUTH_TOKEN_KEY]
             currentAuthUid = prefs[AUTH_UID_KEY] ?: extractSubFromJwt(currentAuthToken)
+            currentRefreshToken = prefs[REFRESH_TOKEN_KEY]
         }
     }
 
-    suspend fun saveIdentity(tenantId: String, syncCode: String, authToken: String, authUid: String? = null) {
+    suspend fun saveIdentity(tenantId: String, syncCode: String, authToken: String, authUid: String? = null, refreshToken: String? = null) {
         val resolvedUid = authUid ?: extractSubFromJwt(authToken)
         val effectiveTenantId = if (tenantId.isNotBlank()) tenantId else (currentTenantId ?: "")
         val effectiveSyncCode = if (syncCode.isNotBlank()) syncCode else (currentSyncCode ?: "")
@@ -51,6 +55,7 @@ class WorkspaceManager private constructor(private val context: Context) {
                 prefs[SYNC_CODE_KEY] = effectiveSyncCode
             }
             prefs[AUTH_TOKEN_KEY] = authToken
+            if (refreshToken != null) prefs[REFRESH_TOKEN_KEY] = refreshToken
             if (!resolvedUid.isNullOrBlank()) {
                 prefs[AUTH_UID_KEY] = resolvedUid
             } else {
@@ -60,6 +65,7 @@ class WorkspaceManager private constructor(private val context: Context) {
         currentTenantId = effectiveTenantId.takeIf { it.isNotBlank() }
         currentSyncCode = effectiveSyncCode.takeIf { it.isNotBlank() }
         currentAuthToken = authToken
+        if (refreshToken != null) currentRefreshToken = refreshToken
         currentAuthUid = resolvedUid
     }
 

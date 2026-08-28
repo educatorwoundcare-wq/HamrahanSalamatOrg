@@ -16,6 +16,7 @@ object ReportingLayer {
         val phone: String,
         val profession: String,
         val position: String,
+        val skill: String,
         val employmentType: String,
         val status: String, // "فعال" / "غیرفعال"
         val commissionModel: String,
@@ -23,7 +24,9 @@ object ReportingLayer {
         val totalSettledCommissions: Double,
         val totalPendingCommissions: Double,
         val totalPaymentsReceived: Double,
-        val bankInfo: String
+        val bankInfo: String,
+        val startDate: Long,
+        val notes: String
     ) : ExcelExportRow
 
     data class PatientReportDto(
@@ -34,13 +37,15 @@ object ReportingLayer {
         val phone: String,
         val address: String,
         val referralSource: String,
+        val referralId: Int?,
         val status: String, // "فعال" / "غیرفعال"
         val totalInvoiced: Double,
         val totalPaid: Double,
         val remainingBalance: Double,
         val servicesCount: Int,
         val registrationDate: Long,
-        val notes: String
+        val notes: String,
+        val tags: String
     ) : ExcelExportRow
 
     data class PatientNursingHistoryDto(
@@ -53,11 +58,20 @@ object ReportingLayer {
 
     data class ServiceReportDto(
         val id: Int,
+        val officialCode: String,
+        val officialName: String,
         val name: String,
         val category: String,
+        val officialTariff: Double,
         val sellingPrice: Double,
         val defaultCost: Double,
+        val transportationCost: Double,
+        val consumablesCost: Double,
+        val discount: Double,
+        val employeeCommission: Double,
         val durationMinutes: Int,
+        val description: String,
+        val pricingUnit: String,
         val timesCompleted: Int,
         val timesScheduled: Int,
         val timesCancelled: Int,
@@ -382,6 +396,7 @@ object ReportingLayer {
                 phone = emp.phone,
                 profession = emp.profession,
                 position = emp.position,
+                skill = emp.skill,
                 employmentType = emp.employmentType,
                 status = emp.status,
                 commissionModel = emp.commissionModel,
@@ -389,7 +404,9 @@ object ReportingLayer {
                 totalSettledCommissions = settledCommissions,
                 totalPendingCommissions = pendingCommissions,
                 totalPaymentsReceived = payments,
-                bankInfo = emp.bankInfo
+                bankInfo = emp.bankInfo,
+                startDate = emp.startDate,
+                notes = emp.notes
             )
         }
 
@@ -408,13 +425,15 @@ object ReportingLayer {
                 phone = p.phone,
                 address = p.address,
                 referralSource = p.referralSource,
+                referralId = p.referralId,
                 status = p.status,
                 totalInvoiced = totalInvoiced,
                 totalPaid = totalPaid,
                 remainingBalance = remainingBalance,
                 servicesCount = pRegs.size,
                 registrationDate = p.registrationDate,
-                notes = p.notes
+                notes = p.notes,
+                tags = p.tags
             )
         }
 
@@ -468,11 +487,20 @@ object ReportingLayer {
 
             ServiceReportDto(
                 id = s.id,
+                officialCode = s.officialCode,
+                officialName = s.officialName,
                 name = s.name,
                 category = s.category,
+                officialTariff = s.officialTariff,
                 sellingPrice = s.sellingPrice,
                 defaultCost = s.defaultCost,
+                transportationCost = s.transportationCost,
+                consumablesCost = s.consumablesCost,
+                discount = s.discount,
+                employeeCommission = s.employeeCommission,
                 durationMinutes = s.durationMinutes,
+                description = s.description,
+                pricingUnit = s.pricingUnit,
                 timesCompleted = completed,
                 timesScheduled = scheduled,
                 timesCancelled = cancelled,

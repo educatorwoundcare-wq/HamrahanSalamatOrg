@@ -8,15 +8,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import com.example.ui.formatDate
 
-import com.example.data.auth.SessionManager
-import com.example.data.auth.TokenManager
-
 class HamrahanRepository @JvmOverloads constructor(
     val context: Context,
     val dao: HamrahanDao,
     var syncEngine: SyncEngine? = null,
-    val cloudClient: CloudClient = CloudClient(dao, context),
-    val sessionManager: SessionManager = SessionManager(TokenManager(context, dao))
+    val cloudClient: CloudClient = CloudClient(dao, context)
 ) {
     suspend fun registerLocalChange(entityType: String, entityId: String, isDeleted: Boolean = false) {
         val activeDeviceId = DeviceIdentityProvider.getDeviceId(context)

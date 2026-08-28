@@ -28,8 +28,13 @@ fun PairingRequestsSection(
     pendingDevices: List<ConnectedDevice>,
     onApprove: (ConnectedDevice) -> Unit,
     onReject: (ConnectedDevice) -> Unit,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    LaunchedEffect(pendingDevices) {
+        android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_SECTION\nreceivedCount=${pendingDevices.size}\nrenderedCount=${pendingDevices.size}")
+    }
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -75,6 +80,14 @@ fun PairingRequestsSection(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (pendingDevices.isNotEmpty()) Color(0xFF92400E) else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                androidx.compose.material3.IconButton(onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "بروزرسانی",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 

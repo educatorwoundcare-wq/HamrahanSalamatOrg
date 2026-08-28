@@ -38,19 +38,21 @@ class SupabaseAuthRepository(
                 if (response.isSuccessful && body != null) {
                     val authMap = moshi.adapter(Map::class.java).fromJson(body) as? Map<String, Any>
                     val accessToken = authMap?.get("access_token") as? String
+                    val refreshToken = authMap?.get("refresh_token") as? String
                     val userMap = authMap?.get("user") as? Map<String, Any>
                     val uid = userMap?.get("id") as? String
                     
-                    if (accessToken != null && uid != null) {
+                    if (!accessToken.isNullOrBlank() && !uid.isNullOrBlank() && !workspaceManager.isTokenExpired(accessToken)) {
                         workspaceManager.saveIdentity(
                             tenantId = tenantId,
                             syncCode = syncCode,
                             authToken = accessToken,
-                            authUid = uid
+                            authUid = uid,
+                            refreshToken = refreshToken
                         )
                         AuthResult.Success
                     } else {
-                        AuthResult.Error("Invalid authorization format received from Supabase.")
+                        AuthResult.Error("Supabase returned an invalid or expired access token.")
                     }
                 } else {
                     Log.w("SupabaseAuth", "Anonymous login failed: ${response.code} $body")
@@ -63,6 +65,55 @@ class SupabaseAuthRepository(
         }
     }
     
+    
+    suspend fun refreshSession(): AuthResult = withContext(Dispatchers.IO) {
+        val refreshToken = workspaceManager.currentRefreshToken
+        if (refreshToken.isNullOrBlank()) {
+            return@withContext AuthResult.Error("No refresh token available")
+        }
+
+        val url = "${clientManager.supabaseUrl}/auth/v1/token?grant_type=refresh_token"
+        val payload = mapOf("refresh_token" to refreshToken)
+        val json = moshi.adapter(Map::class.java).toJson(payload)
+        
+        val request = Request.Builder()
+            .url(url)
+            .post(json.toRequestBody(jsonMediaType))
+            .build()
+            
+        try {
+            clientManager.httpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (response.isSuccessful && body != null) {
+                    val authMap = moshi.adapter(Map::class.java).fromJson(body) as? Map<String, Any>
+                    val newAccessToken = authMap?.get("access_token") as? String
+                    val newRefreshToken = authMap?.get("refresh_token") as? String
+                    val userMap = authMap?.get("user") as? Map<String, Any>
+                    val uid = userMap?.get("id") as? String
+                    
+                    if (!newAccessToken.isNullOrBlank() && !workspaceManager.isTokenExpired(newAccessToken)) {
+                        workspaceManager.saveIdentity(
+                            tenantId = workspaceManager.currentTenantId ?: "",
+                            syncCode = workspaceManager.currentSyncCode ?: "",
+                            authToken = newAccessToken,
+                            authUid = uid ?: workspaceManager.currentAuthUid,
+                            refreshToken = newRefreshToken
+                        )
+                        AuthResult.Success
+                    } else {
+                        AuthResult.Error("Invalid access token returned from refresh")
+                    }
+                } else {
+                    Log.w("SupabaseAuth", "Refresh failed: ${response.code} $body")
+                    AuthResult.Error(extractErrorMessage(body) ?: "Refresh failed")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("SupabaseAuth", "Network error during refresh", e)
+            AuthResult.NetworkError(e)
+        }
+    }
+
     suspend fun logout() {
         // Clear local session securely
         workspaceManager.clearIdentity()

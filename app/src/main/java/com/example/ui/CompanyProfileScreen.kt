@@ -51,6 +51,7 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
     val pendingChangesCount by viewModel.pendingChangesCount.collectAsState()
     val failedSyncCount by viewModel.failedSyncCount.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
+    val livePendingDevices by viewModel.livePendingDevices.collectAsState()
 
     val activeDeviceId by viewModel.activeDeviceId.collectAsState()
     val activeDeviceName by viewModel.activeDeviceName.collectAsState()
@@ -78,6 +79,13 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
             snackbarMessage = it
             showSuccessSnackbar = true
             viewModel.clearCompanyJoinStatus()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        viewModel.startPairingPolling()
+        onDispose {
+            viewModel.stopPairingPolling()
         }
     }
 
@@ -784,7 +792,7 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    val pendingDevices = connectedDevices.filter { it.status == "Pending" }
+                    val pendingDevices = livePendingDevices
                     com.example.ui.components.PairingRequestsSection(
                         pendingDevices = pendingDevices,
                         onApprove = { dev ->
@@ -797,6 +805,7 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                             snackbarMessage = "درخواست دستگاه «${dev.deviceName}» رد شد."
                             showSuccessSnackbar = true
                         },
+                        onRefresh = { viewModel.refreshPairingRequests() },
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 

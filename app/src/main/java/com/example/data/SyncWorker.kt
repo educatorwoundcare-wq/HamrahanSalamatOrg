@@ -7,6 +7,9 @@ import androidx.work.WorkerParameters
 import com.example.HamrahanApplication
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class SyncWorker(
     appContext: Context,
@@ -18,10 +21,7 @@ class SyncWorker(
         val syncEngine = app?.container?.syncEngine ?: run {
             val database = HamrahanDatabase.getDatabase(applicationContext)
             val dao = database.hamrahanDao()
-            val sessionManager = com.example.data.auth.SessionManager(
-                com.example.data.auth.TokenManager(applicationContext, dao)
-            )
-            val cloudClient = CloudClient(dao, applicationContext, sessionManager)
+            val cloudClient = CloudClient(dao, applicationContext)
             SyncEngine(applicationContext, dao, cloudClient)
         }
 
@@ -33,12 +33,26 @@ class SyncWorker(
                 Log.i("SyncWorker", "[WorkManager] Background sync completed successfully.")
                 Result.success()
             } else {
-                Log.w("SyncWorker", "[WorkManager] Background sync returned false or encountered issue. Scheduling retry.")
-                Result.retry()
+                if (!syncEngine.isOnline.value) {
+                    Log.w("SyncWorker", "[WorkManager] Device is offline. Scheduling retry.")
+                    Result.retry()
+                } else {
+                    Log.w("SyncWorker", "[WorkManager] Background sync returned false. Ending work cycle.")
+                    Result.failure()
+                }
             }
-        } catch (e: Exception) {
-            Log.e("SyncWorker", "[WorkManager] Background sync failed with exception", e)
+        } catch (e: IOException) {
+            Log.w("SyncWorker", "[WorkManager] Network I/O error during background sync. Scheduling retry.", e)
             Result.retry()
+        } catch (e: SocketTimeoutException) {
+            Log.w("SyncWorker", "[WorkManager] Socket timeout during background sync. Scheduling retry.", e)
+            Result.retry()
+        } catch (e: UnknownHostException) {
+            Log.w("SyncWorker", "[WorkManager] Unknown host during background sync. Scheduling retry.", e)
+            Result.retry()
+        } catch (e: Exception) {
+            Log.e("SyncWorker", "[WorkManager] Non-retryable background sync failure", e)
+            Result.failure()
         }
     }
 }

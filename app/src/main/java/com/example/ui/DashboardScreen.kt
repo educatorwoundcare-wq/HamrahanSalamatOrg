@@ -104,12 +104,105 @@ fun DashboardScreen(
     var alertFilterTab by remember { mutableStateOf("همه") }
     var dashboardTab by remember { mutableStateOf(0) } // 0 = خلاصه مالی و عملیاتی, 1 = تاریخچه فعالیت‌ها, 2 = صندوق پیام‌ها
     val connectedDevices by viewModel.connectedDevices.collectAsState()
-    val pendingDevices = connectedDevices.filter { it.status == "Pending" }
+    val livePendingDevices by viewModel.livePendingDevices.collectAsState()
+    val pendingDevices = livePendingDevices
     val userRole by viewModel.currentUserRole.collectAsState()
     val isMotherOrAdmin = userRole == "Mother Account" || userRole == "Admin" || userRole == "GM" || userRole == "General Manager" || userRole.isBlank()
     var isQuickActionsExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    
+    var dismissedPendingDevices by remember { mutableStateOf(setOf<String>()) }
+    val visiblePendingDevices = pendingDevices.filter { it.deviceId !in dismissedPendingDevices }
+
+    LaunchedEffect(livePendingDevices, visiblePendingDevices, isMotherOrAdmin) {
+        android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${livePendingDevices.size}\npendingDeviceIds=[${livePendingDevices.map { it.deviceId }.joinToString(",")}]\nvisibleCount=${visiblePendingDevices.size}\nisMotherOrAdmin=$isMotherOrAdmin")
+    }
+
+    if (isMotherOrAdmin && visiblePendingDevices.isNotEmpty()) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = {
+                // If user clicks outside, mark them as dismissed for this session so we don't spam
+                dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevices.map { it.deviceId }.toSet()
+            },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = if (visiblePendingDevices.size > 1) "درخواست‌های اتصال جدید: ${visiblePendingDevices.size}" else "🔔 درخواست اتصال دستگاه جدید",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF92400E)
+                        )
+                    }
+                    
+                    Text(
+                        text = "دستگاه‌های زیر درخواست اتصال به این دفتر را ارسال کرده‌اند:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(visiblePendingDevices, key = { it.deviceId }) { dev ->
+                            com.example.ui.components.PairingRequestCard(
+                                device = dev,
+                                onApprove = { 
+                                    viewModel.approveDeviceAccess(it.deviceId) { error ->
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                onReject = { 
+                                    viewModel.rejectDeviceAccess(it.deviceId) { error ->
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    
+                    TextButton(
+                        onClick = {
+                            dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevices.map { it.deviceId }.toSet()
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("بستن (تأیید بعداً)")
+                    }
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        viewModel.startPairingPolling()
+        onDispose {
+            viewModel.stopPairingPolling()
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.runAlertDiagnostics(context)
     }
@@ -653,6 +746,7 @@ fun DashboardScreen(
                         pendingDevices = pendingDevices,
                         onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
                         onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
+                        onRefresh = { viewModel.refreshPairingRequests() },
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }

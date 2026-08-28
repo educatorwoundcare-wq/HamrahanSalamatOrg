@@ -770,7 +770,16 @@ class HamrahanViewModel @JvmOverloads constructor(
     }
     
     // Report Screen
-    fun exportDataToExcel(outputStream: java.io.OutputStream, sheets: List<String> = emptyList()): Boolean { return true }
+    fun exportDataToExcel(outputStream: java.io.OutputStream, sheets: List<String> = emptyList()): Boolean {
+        return kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+            val snapshot = com.example.data.ReportingLayer.generateSnapshot(repository)
+            com.example.data.ExcelExporter.exportSnapshotToExcel(
+                context = repository.context,
+                outputStream = outputStream,
+                snapshot = snapshot
+            )
+        }
+    }
     
     // Search Screen
     val globalSearchResults = kotlinx.coroutines.flow.MutableStateFlow<com.example.data.SearchResults>(com.example.data.SearchResults(emptyList(), emptyList(), emptyList(), emptyList()))
@@ -793,6 +802,82 @@ class HamrahanViewModel @JvmOverloads constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
     val failedSyncCount = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    private val _livePendingDevices = kotlinx.coroutines.flow.MutableStateFlow<List<ConnectedDevice>>(emptyList())
+    val livePendingDevices: StateFlow<List<ConnectedDevice>> = _livePendingDevices.asStateFlow()
+
+    private var pairingPollingJob: kotlinx.coroutines.Job? = null
+
+    fun startPairingPolling() {
+        if (pairingPollingJob?.isActive == true) return
+        pairingPollingJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            while (true) {
+                refreshPairingRequests()
+                kotlinx.coroutines.delay(10000) // 10 seconds polling fallback
+            }
+        }
+    }
+
+    fun stopPairingPolling() {
+        pairingPollingJob?.cancel()
+        pairingPollingJob = null
+    }
+
+    fun refreshPairingRequests() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val companyId = repository.dao.getSystemSettingByKey("company_id") ?: return@launch
+            if (companyId.isBlank()) return@launch
+            val currentDeviceId = repository.dao.getSystemSettingByKey("active_device_id") ?: com.example.data.WorkspaceManager.getInstance(repository.context).getDeviceId()
+            val userRole = repository.dao.getSystemSettingByKey("user_role") ?: ""
+            val authTokenPresent = !com.example.data.WorkspaceManager.getInstance(repository.context).currentAuthToken.isNullOrBlank()
+
+            Log.d("PAIRING_DIAG", "PAIRING_DIAG_START\ndeviceId=$currentDeviceId\ncompanyId=$companyId\nuid=${com.example.data.WorkspaceManager.getInstance(repository.context).currentAuthUid}\nuserRole=$userRole\nauthTokenPresent=$authTokenPresent\nrequestUrl=/connected_devices?company_id=eq.$companyId\nhttpMethod=GET")
+
+            try {
+                // To log raw HTTP result, we would need to intercept inside getConnectedDevices, 
+                // but since we can't change CloudClient, we log immediately after fetching
+                val remoteDevices = repository.cloudClient.getConnectedDevices(companyId)
+                
+                Log.d("PAIRING_DIAG", "PAIRING_DIAG_HTTP\nstatus=200\nsuccess=true\nresponseLength=${remoteDevices.size}")
+                
+                val totalDevices = remoteDevices.size
+                val pendingRemoteCount = remoteDevices.count { it.status.equals("Pending", ignoreCase = true) }
+                val companyIds = remoteDevices.map { it.companyId }.joinToString(",")
+                val deviceIds = remoteDevices.map { it.deviceId }.joinToString(",")
+                val statuses = remoteDevices.map { it.status }.joinToString(",")
+                
+                Log.d("PAIRING_DIAG", "PAIRING_DIAG_PARSED\ntotalDevices=$totalDevices\npendingDevices=$pendingRemoteCount\ncompanyIds=[$companyIds]\ndeviceIds=[$deviceIds]\nstatuses=[$statuses]")
+
+                val afterCompanyFilter = remoteDevices.size // the endpoint filters by companyId already
+                val afterPendingFilter = remoteDevices.filter { it.status.equals("Pending", ignoreCase = true) }.size
+                
+                val pending = remoteDevices.filter { 
+                    it.status.equals("Pending", ignoreCase = true) && it.deviceId != currentDeviceId 
+                }
+                
+                Log.d("PAIRING_DIAG", "PAIRING_DIAG_FILTER\nbefore=$totalDevices\nafterCompanyFilter=$afterCompanyFilter\nafterPendingFilter=$afterPendingFilter\nafterCurrentDeviceFilter=${pending.size}\ncurrentDeviceId=$currentDeviceId")
+
+                val oldCount = _livePendingDevices.value.size
+                val newCount = pending.size
+                val newDeviceIds = pending.map { it.deviceId }.joinToString(",")
+                
+                Log.d("PAIRING_DIAG", "PAIRING_DIAG_STATE\noldCount=$oldCount\nnewCount=$newCount\nnewDeviceIds=[$newDeviceIds]")
+
+                _livePendingDevices.value = pending
+                
+                // Keep local DB somewhat in sync purely for these pending items, without touching SyncWorker
+                pending.forEach { dev ->
+                    val existing = repository.dao.getConnectedDeviceById(dev.deviceId)
+                    if (existing == null || existing.status == "Pending") {
+                        repository.dao.insertConnectedDevice(dev)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PAIRING_DIAG", "PAIRING_DIAG_HTTP_ERROR\nstatus=-1\nerrorBody=${e.message}")
+                Log.e("HamrahanViewModel", "Error fetching pairing requests", e)
+            }
+        }
+    }
 
     val connectedDevices: StateFlow<List<ConnectedDevice>> = repository.allConnectedDevices
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -990,44 +1075,31 @@ class HamrahanViewModel @JvmOverloads constructor(
 
                 val workspaceManager = WorkspaceManager.getInstance(repository.context)
 
-                // Step 1: Ensure valid auth session first
-                repository.cloudClient.ensureAuthSession()
-                var currentToken = workspaceManager.currentAuthToken
-                var authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
-
-                if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
-                    val authResult = supabaseAuthRepository.signInAnonymously("", "")
-                    if (authResult !is com.example.data.supabase.AuthResult.Success) {
-                        val errMsg = when (authResult) {
-                            is com.example.data.supabase.AuthResult.Error -> "خطای احراز هویت: ${authResult.message}"
-                            is com.example.data.supabase.AuthResult.NetworkError -> "خطای شبکه در احراز هویت: ${authResult.exception.localizedMessage}"
-                            else -> "خطای سرور ابری در برقراری نشست امن."
-                        }
-                        Log.e("CREATE_OFFICE_01", "[CREATE_OFFICE_01]\nauth session exists: false\nauthUid: NONE\ntokenPresent=false")
-                        Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: Auth session failed: $errMsg")
-                        companyJoinError.value = errMsg
-                        return@launch
-                    }
-                    currentToken = workspaceManager.currentAuthToken
-                    authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
-                }
-
-                val tokenPresent = !currentToken.isNullOrBlank()
-                val authSessionExists = tokenPresent && !authUid.isNullOrBlank()
-
-                Log.i("CREATE_OFFICE_01", "[CREATE_OFFICE_01]\nauth session exists: $authSessionExists\nauthUid: ${authUid ?: "NONE"}\ntokenPresent=$tokenPresent")
-
-                if (authUid.isNullOrBlank()) {
-                    Log.e("CREATE_OFFICE_12", "[CREATE_OFFICE_12]\nFINAL RESULT: FAILURE\nexact reason: No authUid retrieved")
-                    companyJoinError.value = "شناسه امنیتی کاربر دریافت نشد. ساخت مرکز لغو شد."
-                    return@launch
-                }
-
-                // Step 2: Generate NEW canonical company_id and sync_code (NEVER reuse existing workspace on Create)
+                // Step 1: Generate NEW canonical company_id and sync_code
                 val generatedCompanyId = "COMP-" + java.util.UUID.randomUUID().toString().replace("-", "").take(8).uppercase()
                 val generatedSyncCode = "HAMRAHAN-" + java.util.UUID.randomUUID().toString().replace("-", "").take(6).uppercase()
 
                 Log.i("CREATE_OFFICE_02", "[CREATE_OFFICE_02]\nrequested operation = CREATE_NEW_OFFICE\ncenterName: $name\ngeneratedCompanyId: $generatedCompanyId\ngeneratedSyncCode: $generatedSyncCode")
+
+                // Step 2: Ensure valid auth session using the generated IDs
+                val authRes = repository.cloudClient.ensureAuthSession(generatedCompanyId, generatedSyncCode)
+                if (authRes !is com.example.data.supabase.AuthResult.Success) {
+                    val errMsg = if (authRes is com.example.data.supabase.AuthResult.Error) authRes.message else "خطای شبکه در احراز هویت اولیه"
+                    Log.e("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=false\nhasAccessToken=false\nfailureType=$errMsg")
+                    companyJoinError.value = "خطا در ارتباط با سرور جهت احراز هویت: $errMsg"
+                    return@launch
+                }
+
+                val currentToken = workspaceManager.currentAuthToken
+                val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
+
+                if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
+                    Log.e("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=false\nhasAccessToken=false\ntokenExpired=true\nauthUid=null\nfailureType=Token Missing")
+                    companyJoinError.value = "نشست امن کاربری معتبر نیست. لطفاً اتصال اینترنت را بررسی کنید."
+                    return@launch
+                }
+                
+                Log.i("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=true\nhasAccessToken=true\ntokenExpired=false\nauthUid=$authUid\nsessionCreated=true")
 
                 // Step 3: Diagnostic fetch of workspaces (DO NOT AUTO-SELECT)
                 val myWorkspaces = repository.cloudClient.getMyWorkspaces()
@@ -1084,9 +1156,9 @@ class HamrahanViewModel @JvmOverloads constructor(
                 }
 
                 // Step 7: registerDeviceDetailed START
-                val devId = DeviceIdentityProvider.syncWithRoomDatabase(repository.context, repository.dao)
+                var devId = DeviceIdentityProvider.syncWithRoomDatabase(repository.context, repository.dao)
 
-                val selfDevice = ConnectedDevice(
+                var selfDevice = ConnectedDevice(
                     deviceId = devId,
                     deviceName = "تلفن مدیرعامل (سرپرست مرکز)",
                     deviceType = "Phone",
@@ -1105,7 +1177,14 @@ class HamrahanViewModel @JvmOverloads constructor(
                 Log.i("CREATE_OFFICE_07", "[CREATE_OFFICE_07]\nregisterDeviceDetailed START\ndeviceId: $devId\ncompanyId: $generatedCompanyId\nuid: $authUid\nrole: Mother Account\nstatus: Active")
 
                 // Step 8: registerDeviceDetailed RESULT
-                val deviceRegResult = repository.cloudClient.registerDeviceDetailed(generatedCompanyId, selfDevice)
+                var deviceRegResult = repository.cloudClient.registerDeviceDetailed(generatedCompanyId, selfDevice)
+                
+                if (deviceRegResult is DeviceRegistrationResult.Error && deviceRegResult.message.contains("DEVICE_BELONGS_TO_ANOTHER_WORKSPACE_OR_USER")) {
+                    Log.w("CREATE_OFFICE_07", "[CREATE_OFFICE_07] Device collision detected. Regenerating device ID and retrying once.")
+                    devId = DeviceIdentityProvider.forceRegenerateAndSync(repository.context, repository.dao)
+                    selfDevice = selfDevice.copy(deviceId = devId)
+                    deviceRegResult = repository.cloudClient.registerDeviceDetailed(generatedCompanyId, selfDevice)
+                }
                 when (deviceRegResult) {
                     is DeviceRegistrationResult.Success -> {
                         Log.i("DEVICE_REGISTRATION_RESULT", "[DEVICE_REGISTRATION_RESULT]\nhttpStatus=${deviceRegResult.httpStatus}\nresult=Success")
@@ -1205,32 +1284,26 @@ class HamrahanViewModel @JvmOverloads constructor(
 
                 // Step 1: Ensure authenticated Supabase session exists
                 val workspaceManager = WorkspaceManager.getInstance(repository.context)
-                repository.cloudClient.ensureAuthSession()
-                var currentToken = workspaceManager.currentAuthToken
-                var authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
-
-                if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
-                    val authResult = supabaseAuthRepository.signInAnonymously("", "")
-                    if (authResult !is com.example.data.supabase.AuthResult.Success) {
-                        val errMsg = when (authResult) {
-                            is com.example.data.supabase.AuthResult.Error -> "خطای احراز هویت: ${authResult.message}"
-                            is com.example.data.supabase.AuthResult.NetworkError -> "خطای شبکه در احراز هویت: ${authResult.exception.localizedMessage}"
-                            else -> "خطای سرور ابری در برقراری نشست امن."
-                        }
-                        Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [AUTH_FAILED] $errMsg")
-                        companyJoinError.value = errMsg
-                        return@launch
-                    }
-                    currentToken = workspaceManager.currentAuthToken
-                    authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
-                }
-
-                val finalAuthUid = authUid ?: ""
-                if (finalAuthUid.isBlank()) {
-                    Log.e("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [AUTH_FAILED] No authUid retrieved")
-                    companyJoinError.value = "شناسه امنیتی کاربر دریافت نشد. اتصال به دفتر لغو شد."
+                val authRes = repository.cloudClient.ensureAuthSession("", normalizedSyncCode)
+                if (authRes !is com.example.data.supabase.AuthResult.Success) {
+                    val errMsg = if (authRes is com.example.data.supabase.AuthResult.Error) authRes.message else "خطای شبکه در احراز هویت اولیه"
+                    Log.e("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=false\nhasAccessToken=false\nfailureType=$errMsg")
+                    companyJoinError.value = "خطا در ارتباط با سرور جهت احراز هویت: $errMsg"
                     return@launch
                 }
+
+                val currentToken = workspaceManager.currentAuthToken
+                val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(currentToken)
+
+                if (currentToken.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(currentToken)) {
+                    Log.e("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=false\nhasAccessToken=false\ntokenExpired=true\nauthUid=null\nfailureType=Token Missing")
+                    companyJoinError.value = "نشست امن کاربری معتبر نیست. لطفاً اتصال اینترنت را بررسی کنید."
+                    return@launch
+                }
+
+                Log.i("AUTH_BOOTSTRAP", "[AUTH_BOOTSTRAP]\nhasExistingSession=true\nhasAccessToken=true\ntokenExpired=false\nauthUid=$authUid\nsessionCreated=true")
+                val finalAuthUid = authUid ?: ""
+
 
                 // Step 2: Call resolve_workspace_by_sync_code RPC
                 Log.i("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [LOOKUP_START] syncCode=$normalizedSyncCode authUid=$finalAuthUid")
@@ -1387,18 +1460,23 @@ class HamrahanViewModel @JvmOverloads constructor(
         }
     }
 
-    fun approveDeviceAccess(deviceId: String) {
+    fun approveDeviceAccess(deviceId: String, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Approve clicked deviceId=$deviceId")
             val dev = repository.dao.getConnectedDeviceById(deviceId)
             if (dev != null) {
                 val companyId = repository.dao.getSystemSettingByKey("company_id") ?: ""
                 var remoteSuccess = false
+                var errorMessage = ""
                 if (companyId.isNotBlank()) {
                     try {
                         remoteSuccess = repository.cloudClient.patchDeviceAuthorization(companyId, dev.deviceId, "Active", dev.role)
+                        if (!remoteSuccess) {
+                            errorMessage = "سرور ابری تغییر وضعیت دستگاه را نپذیرفت."
+                        }
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error updating device approval on cloud", e)
+                        errorMessage = "خطای شبکه هنگام تأیید دستگاه در سرور ابری."
                     }
                 } else {
                     remoteSuccess = true
@@ -1418,26 +1496,33 @@ class HamrahanViewModel @JvmOverloads constructor(
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error resolving alert for approved device", e)
                     }
+                    _livePendingDevices.value = _livePendingDevices.value.filter { it.deviceId != deviceId }
                     repository.syncEngine?.triggerSync()
                 } else {
                     Log.e("HamrahanViewModel", "[PAIRING_POPUP] Device approval failed on cloud for deviceId=$deviceId")
+                    onError(errorMessage)
                 }
             }
         }
     }
 
-    fun rejectDeviceAccess(deviceId: String) {
+    fun rejectDeviceAccess(deviceId: String, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Reject clicked deviceId=$deviceId")
             val dev = repository.dao.getConnectedDeviceById(deviceId)
             if (dev != null) {
                 val companyId = repository.dao.getSystemSettingByKey("company_id") ?: ""
                 var remoteSuccess = false
+                var errorMessage = ""
                 if (companyId.isNotBlank()) {
                     try {
                         remoteSuccess = repository.cloudClient.patchDeviceAuthorization(companyId, dev.deviceId, "Rejected", dev.role)
+                        if (!remoteSuccess) {
+                            errorMessage = "سرور ابری تغییر وضعیت دستگاه را نپذیرفت."
+                        }
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error updating device rejection on cloud", e)
+                        errorMessage = "خطای شبکه هنگام رد دستگاه در سرور ابری."
                     }
                 } else {
                     remoteSuccess = true
@@ -1457,9 +1542,11 @@ class HamrahanViewModel @JvmOverloads constructor(
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error resolving alert for rejected device", e)
                     }
+                    _livePendingDevices.value = _livePendingDevices.value.filter { it.deviceId != deviceId }
                     repository.syncEngine?.triggerSync()
                 } else {
                     Log.e("HamrahanViewModel", "[PAIRING_POPUP] Device rejection failed on cloud for deviceId=$deviceId")
+                    onError(errorMessage)
                 }
             }
         }

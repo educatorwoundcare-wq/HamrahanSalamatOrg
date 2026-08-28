@@ -485,10 +485,18 @@ class SyncEngine @JvmOverloads constructor(
                     )
 
                     // Real cloud upload using detailed caller
+                    Log.e(
+                        "SYNC_DIAGNOSTIC",
+                        "UPLOAD START | entityType=${meta.entityType} | entityId=${meta.entityId}"
+                    )
                     Log.i("SyncEngine", "[Upload] Uploading record ${cloudRecord.id} of type ${cloudRecord.entityType} to company $canonicalCompanyId")
                     val uploadResult = cloudClient.uploadRecordDetailed(canonicalCompanyId, cloudRecord)
                     when (uploadResult) {
                         is UploadRecordResult.Success -> {
+                            Log.e(
+                                "SYNC_DIAGNOSTIC",
+                                "UPLOAD RESULT | entity=${meta.entityType} | id=${meta.entityId} | success=true | code=${uploadResult.httpCode} | body=OK"
+                            )
                             Log.i("SYNC_QUEUE_TRACE", """
                                 [SYNC_QUEUE_ITEM]
                                 operation UUID: $operationUuid
@@ -508,6 +516,10 @@ class SyncEngine @JvmOverloads constructor(
                             dao.insertCloudSyncRecord(cloudRecord)
                         }
                         is UploadRecordResult.Blocked -> {
+                            Log.e(
+                                "SYNC_DIAGNOSTIC",
+                                "UPLOAD RESULT | entity=${meta.entityType} | id=${meta.entityId} | success=false | code=403 | body=MUTATION_BLOCKED_${uploadResult.reason}"
+                            )
                             val classification = if (uploadResult.reason.contains("TOKEN") || uploadResult.reason.contains("AUTH")) {
                                 SyncClassification.C
                             } else if (uploadResult.reason.contains("COMPANY") || uploadResult.reason.contains("WORKSPACE")) {
@@ -548,6 +560,10 @@ class SyncEngine @JvmOverloads constructor(
                             )
                         }
                         is UploadRecordResult.HttpError -> {
+                            Log.e(
+                                "SYNC_DIAGNOSTIC",
+                                "UPLOAD RESULT | entity=${meta.entityType} | id=${meta.entityId} | success=false | code=${uploadResult.httpCode} | body=${uploadResult.body}"
+                            )
                             val classification = when (uploadResult.httpCode) {
                                 401, 403 -> SyncClassification.D
                                 409 -> SyncClassification.E
@@ -591,6 +607,11 @@ class SyncEngine @JvmOverloads constructor(
                             )
                         }
                         is UploadRecordResult.NetworkError -> {
+                            Log.e(
+                                "SYNC_DIAGNOSTIC",
+                                "UPLOAD RESULT | entity=${meta.entityType} | id=${meta.entityId} | success=false | code=0 | exception=${uploadResult.exception.javaClass.simpleName}: ${uploadResult.exception.message}",
+                                uploadResult.exception
+                            )
                             val classification = SyncClassification.B
                             val errMsg = uploadResult.exception.message ?: "Network error"
                             Log.e("SYNC_QUEUE_TRACE", """
@@ -627,6 +648,11 @@ class SyncEngine @JvmOverloads constructor(
                         }
                     }
                 } catch (e: Exception) {
+                    Log.e(
+                        "SYNC_DIAGNOSTIC",
+                        "UPLOAD FAILED | entity=${meta.entityType} | id=${meta.entityId}",
+                        e
+                    )
                     val classification = SyncClassification.G
                     val errMsg = e.message ?: "Unexpected exception"
                     Log.e("SYNC_QUEUE_TRACE", """
@@ -663,25 +689,24 @@ class SyncEngine @JvmOverloads constructor(
                 }
             }
 
+            val currentPendingMetadata = dao.getPendingSyncMetadata()
+            val remainingPendingCount = currentPendingMetadata.size
+
             val summary = SyncSummary(
                 total = totalPendingCount,
                 successful = successfulUploads,
-                pending = pendingMetadata.count { it.syncStatus == "Pending" },
+                pending = remainingPendingCount,
                 retrying = retryingUploads,
                 failed = failedUploads,
                 blocked = blockedUploads,
                 details = syncDetails
             )
             _syncSummary.value = summary
-            Log.i("SYNC_SUMMARY", """
-                [SYNC_SUMMARY]
-                total: ${summary.total}
-                successful: ${summary.successful}
-                pending: ${summary.pending}
-                retrying: ${summary.retrying}
-                failed: ${summary.failed}
-                blocked: ${summary.blocked}
-            """.trimIndent())
+            
+            val authState = WorkspaceManager.getInstance(context).currentAuthToken != null
+            val failuresGrouped = syncDetails.groupBy { it.classification.name }.map { "${it.key}: ${it.value.size}" }.joinToString(", ")
+            
+            Log.i("SYNC_SUMMARY", "SYNC_SUMMARY | totalPending=$totalPendingCount | uploaded=$successfulUploads | failed=${syncDetails.size} | remainingPending=$remainingPendingCount | groups: $failuresGrouped")
 
             // 3. Pull remote changes from the Real Cloud Database
             Log.i("SyncEngine", "[Download] Fetching cloud records for company $companyId")

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import java.util.UUID
 
+
 object DeviceIdentityProvider {
 
     private const val PREFS_NAME = "device_identity_prefs"
@@ -118,5 +119,23 @@ object DeviceIdentityProvider {
             dao.insertSystemSetting(SystemSetting("active_device_id", canonicalId))
         }
         return canonicalId
+    }
+
+    fun forceRegenerateDeviceId(context: Context): String {
+        synchronized(lock) {
+            val newDeviceId = "$PREFIX${UUID.randomUUID()}"
+            val appContext = context.applicationContext
+            val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putString(KEY_INSTALLATION_DEVICE_ID, newDeviceId).apply()
+            cachedDeviceId = newDeviceId
+            Log.i("DEVICE_ID", "[DEVICE_ID]\ndeviceId=$newDeviceId\nsource=forced_regeneration")
+            return newDeviceId
+        }
+    }
+
+    suspend fun forceRegenerateAndSync(context: Context, dao: HamrahanDao): String {
+        val newDeviceId = forceRegenerateDeviceId(context)
+        dao.insertSystemSetting(SystemSetting("active_device_id", newDeviceId))
+        return newDeviceId
     }
 }

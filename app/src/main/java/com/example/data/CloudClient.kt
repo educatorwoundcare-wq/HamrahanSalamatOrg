@@ -2,8 +2,6 @@ package com.example.data
 
 import android.content.Context
 import android.util.Log
-import com.example.data.auth.SessionManager
-import com.example.data.auth.TokenManager
 import com.example.data.supabase.SupabaseClientManager
 import com.example.data.WorkspaceManager
 import com.squareup.moshi.Moshi
@@ -137,27 +135,12 @@ sealed class UploadRecordResult {
     data class NetworkError(val exception: Exception) : UploadRecordResult()
 }
 
-sealed class FirebaseException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class NetworkError(message: String, cause: Throwable) : FirebaseException(message, cause)
-    class AuthenticationError(val code: Int, val firebaseError: String?, message: String) : FirebaseException(message)
-    class PermissionDenied(val code: Int, message: String) : FirebaseException(message)
-    class WorkspaceNotFound(message: String) : FirebaseException(message)
-    class TokenExpired(message: String) : FirebaseException(message)
-    class InvalidResponse(message: String, cause: Throwable? = null) : FirebaseException(message, cause)
-    class UnknownError(val code: Int, message: String, cause: Throwable? = null) : FirebaseException(message, cause)
-}
-
 class CloudClient @JvmOverloads constructor(
     private val dao: HamrahanDao,
-    private val context: Context? = null,
-    val sessionManager: SessionManager? = null
+    private val context: Context? = null
 ) {
     private val resolvedContext: Context
         get() = context ?: com.example.HamrahanApplication.instance
-        
-    val internalSessionManager: SessionManager by lazy {
-        sessionManager ?: SessionManager(TokenManager(resolvedContext, dao))
-    }
     
     private val workspaceManager: WorkspaceManager by lazy {
         WorkspaceManager.getInstance(resolvedContext)
@@ -181,13 +164,6 @@ class CloudClient @JvmOverloads constructor(
     
     private val devicesListType = Types.newParameterizedType(List::class.java, ConnectedDevice::class.java)
     private val devicesListAdapter = moshi.adapter<List<ConnectedDevice>>(devicesListType)
-
-    // --- Firebase Auth (Deprecated - Handled by SupabaseAuthRepository now) ---
-    suspend fun getValidIdToken(): String? = withContext(Dispatchers.IO) {
-        // We now rely on Supabase Anon Key + RLS (WorkspaceManager) for requests.
-        // Return a dummy token so SyncEngine doesn't fail.
-        "SUPABASE_ANON_TOKEN"
-    }
 
     // --- Data Sync Record Actions ---
     
@@ -579,11 +555,7 @@ class CloudClient @JvmOverloads constructor(
         val token = workspaceManager.currentAuthToken
         val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(token)
         if (token.isNullOrBlank() || authUid.isNullOrBlank() || workspaceManager.isTokenExpired(token)) {
-            val authRepo = com.example.data.supabase.SupabaseAuthRepository(supabaseManager, workspaceManager)
-            val authResult = authRepo.signInAnonymously("", "")
-            if (authResult !is com.example.data.supabase.AuthResult.Success) {
-                return@withContext WorkspaceLookupResult.NoToken(normalizedSyncCode)
-            }
+            return@withContext WorkspaceLookupResult.NoToken(normalizedSyncCode)
         }
 
         val jsonPayload = JSONObject().apply { put("p_sync_code", normalizedSyncCode) }.toString()
@@ -671,22 +643,46 @@ class CloudClient @JvmOverloads constructor(
         if (result is WorkspaceLookupResult.Success) result.workspace else null
     }
 
-    suspend fun ensureAuthSession(targetCompanyId: String? = null, targetSyncCode: String? = null) {
+    suspend fun ensureAuthSession(targetCompanyId: String? = null, targetSyncCode: String? = null): com.example.data.supabase.AuthResult {
         val currentToken = workspaceManager.currentAuthToken
         val isExpired = workspaceManager.isTokenExpired(currentToken)
+        val authRepo = com.example.data.supabase.SupabaseAuthRepository(supabaseManager, workspaceManager)
+        
         if (currentToken.isNullOrBlank() || isExpired) {
-            val companyId = targetCompanyId ?: dao?.getSystemSettingByKey("company_id") ?: ""
-            val syncCode = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code") ?: ""
-            if (companyId.isNotBlank() && syncCode.isNotBlank()) {
-                Log.i("AUTH_TRACE", "Token missing or expired. Authenticating anonymously for companyId=$companyId")
-                val authRepo = com.example.data.supabase.SupabaseAuthRepository(supabaseManager, workspaceManager)
-                authRepo.signInAnonymously(companyId, syncCode)
+            var refreshed = false
+            if (!workspaceManager.currentRefreshToken.isNullOrBlank()) {
+                Log.i("AUTH_TRACE", "Token expired. Attempting refresh...")
+                val refreshResult = authRepo.refreshSession()
+                if (refreshResult is com.example.data.supabase.AuthResult.Success) {
+                    refreshed = true
+                    Log.i("AUTH_TRACE", "Session refreshed successfully.")
+                }
+            }
+            
+            if (!refreshed) {
+                val companyId = targetCompanyId ?: dao?.getSystemSettingByKey("company_id") ?: ""
+                val syncCode = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code") ?: ""
+                
+                Log.i("AUTH_TRACE", "Token missing/expired. Authenticating anonymously for companyId=$companyId, syncCode=$syncCode")
+                val authResult = authRepo.signInAnonymously(companyId, syncCode)
+                if (authResult !is com.example.data.supabase.AuthResult.Success) {
+                    Log.e("AUTH_TRACE", "Anonymous authentication failed: $authResult")
+                    return authResult
+                }
             }
         }
-        val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(workspaceManager.currentAuthToken)
+        
+        val finalToken = workspaceManager.currentAuthToken
+        if (finalToken.isNullOrBlank() || workspaceManager.isTokenExpired(finalToken)) {
+            return com.example.data.supabase.AuthResult.Error("Failed to obtain valid session token.")
+        }
+        
+        val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(finalToken)
         val localCompany = targetCompanyId ?: workspaceManager.currentTenantId ?: dao?.getSystemSettingByKey("company_id")
         val localSync = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code")
         Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompany localSyncCode=$localSync remoteCreatorUid=N/A decision=ENSURE_AUTH_SESSION")
+        
+        return com.example.data.supabase.AuthResult.Success
     }
 
     private var lastAuthUid: String? = null
@@ -744,147 +740,59 @@ class CloudClient @JvmOverloads constructor(
                 requireActiveDevice = false
             )
             if (!authContext.allowed) {
-                Log.w("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$authUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=Unauthorized\noperation=SKIP\nreason=${authContext.reason}")
                 return@withLock DeviceResolution.Unauthorized(401, authContext.reason)
             }
-
             val currentAuthUid = authContext.authUid ?: authUid
 
-            // Step A: Resolve first
+            if (deviceRole == "Mother Account") {
+                val rpcJson = JSONObject().apply {
+                    put("p_app_version", "v2.0.0")
+                    put("p_company_id", companyId)
+                    put("p_device_id", deviceId)
+                    put("p_device_name", deviceName)
+                    put("p_device_type", deviceType)
+                    put("p_requested_role", "Mother Account")
+                }.toString()
+                
+                val rpcRequest = Request.Builder()
+                    .url("$baseUrl/rpc/bootstrap_creator_device")
+                    .post(rpcJson.toRequestBody(jsonMediaType))
+                    .build()
+                    
+                try {
+                    client.newCall(rpcRequest).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            val code = response.code
+                            val errBody = response.body?.string() ?: ""
+                            Log.e("DEVICE_WRITE", "RPC failed: HTTP $code $errBody")
+                            return@withLock DeviceResolution.Unauthorized(code, "خطای دسترسی در ثبت دستگاه مدیر: $errBody")
+                        }
+                    }
+                } catch (e: Exception) {
+                    return@withLock DeviceResolution.Failed(e)
+                }
+                
+                return@withLock resolveDevice(companyId, deviceId)
+            }
+            
             val resolution = resolveDevice(companyId, deviceId)
-
             when (resolution) {
-                is DeviceResolution.ExistsActive -> {
-                    val existing = resolution.device
-                    // If device belongs to same user or is unassigned or is Mother Account bootstrap
-                    if (existing.uid.isBlank() || existing.uid == currentAuthUid || deviceRole == "Mother Account") {
-                        Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsActive\noperation=UPDATE\nreason=REBIND_OR_REFRESH_ACTIVE_DEVICE")
-                        val updatePayload = buildDevicePatchPayload(
-                            deviceName = deviceName,
-                            deviceType = deviceType,
-                            appVersion = "v2.0.0",
-                            lastOnlineTime = System.currentTimeMillis(),
-                            lastSeen = System.currentTimeMillis(),
-                            status = initialStatus,
-                            role = deviceRole,
-                            requestedRole = requestedRole
-                        )
-                        logConnectedDevicePatch(deviceId, updatePayload)
-                        val updateJson = updatePayload.toString()
-
-                        val updateRequest = Request.Builder()
-                            .url("$baseUrl/connected_devices?device_id=eq.$deviceId")
-                            .patch(updateJson.toRequestBody(jsonMediaType))
-                            .build()
-
-                        try {
-                            client.newCall(updateRequest).execute().use { response ->
-                                val httpCode = response.code
-                                val isSuccess = response.isSuccessful
-                                Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=ENSURE_DEVICE_PATCH\nhttpCode=$httpCode\nsuccess=$isSuccess")
-                                if (!isSuccess) {
-                                    val errBody = response.body?.string() ?: ""
-                                    Log.e("DEVICE_WRITE", "[DEVICE_WRITE] Failed to patch device $deviceId: HTTP $httpCode $errBody")
-                                    return@withLock DeviceResolution.Unauthorized(httpCode, "HTTP $httpCode: $errBody")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("CloudClient", "Heartbeat patch failed for active device $deviceId", e)
-                            return@withLock DeviceResolution.Failed(e)
-                        }
-                        DeviceResolution.ExistsActive(existing.copy(companyId = companyId, status = initialStatus, role = deviceRole, uid = currentAuthUid))
-                    } else {
-                        Log.w("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsActive\noperation=SKIP\nreason=OWNERSHIP_OR_COMPANY_MISMATCH")
-                        DeviceResolution.Unauthorized(403, "Device $deviceId belongs to different identity (${existing.uid})")
-                    }
-                }
-                is DeviceResolution.ExistsPending -> {
-                    val existing = resolution.device
-                    if (existing.uid.isBlank() || existing.uid == currentAuthUid || deviceRole == "Mother Account") {
-                        Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsPending\noperation=UPDATE\nreason=PROMOTE_OR_UPDATE_PENDING_DEVICE")
-                        val updatePayload = buildDevicePatchPayload(
-                            deviceName = deviceName,
-                            deviceType = deviceType,
-                            appVersion = "v2.0.0",
-                            lastOnlineTime = System.currentTimeMillis(),
-                            lastSeen = System.currentTimeMillis(),
-                            status = initialStatus,
-                            role = deviceRole,
-                            requestedRole = requestedRole
-                        )
-                        logConnectedDevicePatch(deviceId, updatePayload)
-                        val updateJson = updatePayload.toString()
-
-                        val updateRequest = Request.Builder()
-                            .url("$baseUrl/connected_devices?device_id=eq.$deviceId")
-                            .patch(updateJson.toRequestBody(jsonMediaType))
-                            .build()
-
-                        try {
-                            client.newCall(updateRequest).execute().use { response ->
-                                val httpCode = response.code
-                                val isSuccess = response.isSuccessful
-                                Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=ENSURE_DEVICE_PATCH_PENDING\nhttpCode=$httpCode\nsuccess=$isSuccess")
-                                if (!isSuccess) {
-                                    val errBody = response.body?.string() ?: ""
-                                    Log.e("DEVICE_WRITE", "[DEVICE_WRITE] Failed to patch pending device $deviceId: HTTP $httpCode $errBody")
-                                    return@withLock DeviceResolution.Unauthorized(httpCode, "HTTP $httpCode: $errBody")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            return@withLock DeviceResolution.Failed(e)
-                        }
-                        if (initialStatus == "Active") {
-                            DeviceResolution.ExistsActive(existing.copy(companyId = companyId, status = "Active", role = deviceRole, uid = currentAuthUid))
-                        } else {
-                            DeviceResolution.ExistsPending(existing.copy(companyId = companyId, status = "Pending", role = deviceRole, uid = currentAuthUid))
-                        }
-                    } else {
-                        Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsPending\noperation=SKIP\nreason=PRESERVE_PENDING_STATE")
-                        DeviceResolution.ExistsPending(resolution.device)
-                    }
-                }
+                is DeviceResolution.ExistsActive,
+                is DeviceResolution.ExistsPending,
                 is DeviceResolution.ExistsOther -> {
-                    val existing = resolution.device
-                    if (existing.uid.isBlank() || existing.uid == currentAuthUid || deviceRole == "Mother Account") {
-                        Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsOther\noperation=UPDATE\nreason=REACTIVATE_DEVICE")
-                        val updatePayload = buildDevicePatchPayload(
-                            deviceName = deviceName,
-                            deviceType = deviceType,
-                            appVersion = "v2.0.0",
-                            lastOnlineTime = System.currentTimeMillis(),
-                            lastSeen = System.currentTimeMillis(),
-                            status = initialStatus,
-                            role = deviceRole,
-                            requestedRole = requestedRole
-                        )
-                        logConnectedDevicePatch(deviceId, updatePayload)
-                        val updateJson = updatePayload.toString()
-
-                        val updateRequest = Request.Builder()
-                            .url("$baseUrl/connected_devices?device_id=eq.$deviceId")
-                            .patch(updateJson.toRequestBody(jsonMediaType))
-                            .build()
-
-                        try {
-                            client.newCall(updateRequest).execute().use { response ->
-                                if (!response.isSuccessful) {
-                                    val errBody = response.body?.string() ?: ""
-                                    return@withLock DeviceResolution.Unauthorized(response.code, "HTTP ${response.code}: $errBody")
-                                }
-                            }
-                        } catch (e: Exception) {
-                            return@withLock DeviceResolution.Failed(e)
-                        }
-                        DeviceResolution.ExistsActive(existing.copy(companyId = companyId, status = initialStatus, role = deviceRole, uid = currentAuthUid))
+                    val existing = when (resolution) {
+                        is DeviceResolution.ExistsActive -> resolution.device
+                        is DeviceResolution.ExistsPending -> resolution.device
+                        is DeviceResolution.ExistsOther -> resolution.device
+                        else -> throw IllegalStateException()
+                    }
+                    if (existing.companyId == companyId && existing.uid == currentAuthUid) {
+                        return@withLock resolution
                     } else {
-                        Log.w("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=ExistsOther\noperation=SKIP\nreason=STATUS_${resolution.device.status}")
-                        resolution
+                        return@withLock DeviceResolution.Unauthorized(403, "این دستگاه به حساب یا مرکز دیگری متصل است.")
                     }
                 }
                 is DeviceResolution.NotFound -> {
-                    // E) If NotFound: perform the initial INSERT with on_conflict=device_id & merge-duplicates header
-                    Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=NotFound\noperation=INSERT\nreason=NEW_DEVICE_REGISTRATION")
                     val insertJson = JSONObject().apply {
                         put("device_id", deviceId)
                         put("company_id", companyId)
@@ -893,7 +801,7 @@ class CloudClient @JvmOverloads constructor(
                         put("app_version", "v2.0.0")
                         put("last_online_time", System.currentTimeMillis())
                         put("last_successful_sync", 0L)
-                        put("status", initialStatus)
+                        put("status", "Pending")
                         put("uid", currentAuthUid)
                         put("role", deviceRole)
                         put("last_seen", System.currentTimeMillis())
@@ -901,43 +809,26 @@ class CloudClient @JvmOverloads constructor(
                     }.toString()
 
                     val insertRequest = Request.Builder()
-                        .url("$baseUrl/connected_devices?on_conflict=device_id")
-                        .header("Prefer", "resolution=merge-duplicates")
+                        .url("$baseUrl/connected_devices")
                         .post(insertJson.toRequestBody(jsonMediaType))
                         .build()
 
                     try {
                         client.newCall(insertRequest).execute().use { response ->
-                            val httpCode = response.code
-                            val isSuccess = response.isSuccessful
-                            Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=ENSURE_DEVICE_INSERT\nhttpCode=$httpCode\nsuccess=$isSuccess")
-                            Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=NotFound\noperation=INSERT_HTTP_$httpCode\nreason=INSERT_RESPONSE")
-                            if (!isSuccess) {
+                            if (!response.isSuccessful) {
+                                val code = response.code
                                 val errBody = response.body?.string() ?: ""
-                                Log.e("DEVICE_WRITE", "[DEVICE_WRITE] Failed to insert device $deviceId: HTTP $httpCode $errBody")
-                                return@withLock DeviceResolution.Unauthorized(httpCode, "HTTP $httpCode: $errBody")
+                                return@withLock DeviceResolution.Unauthorized(code, "HTTP $code: $errBody")
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=NotFound\noperation=INSERT_ERROR\nreason=${e.message}", e)
-                        Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=ENSURE_DEVICE_INSERT\nhttpCode=0\nsuccess=false")
                         return@withLock DeviceResolution.Failed(e)
                     }
-
-                    // Immediately re-resolve
-                    val freshRes = resolveDevice(companyId, deviceId)
-                    Log.i("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=${freshRes.javaClass.simpleName}\noperation=RE_RESOLVE\nreason=POST_INSERT_CONFIRMATION")
-                    freshRes
+                    return@withLock resolveDevice(companyId, deviceId)
                 }
+                is DeviceResolution.Failed,
                 is DeviceResolution.Unauthorized -> {
-                    // F) If Unauthorized: stop bootstrap
-                    Log.w("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=Unauthorized\noperation=SKIP\nreason=UNAUTHORIZED_CODE_${resolution.code}")
-                    resolution
-                }
-                is DeviceResolution.Failed -> {
-                    // G) If Failed: stop bootstrap
-                    Log.e("DEVICE_WRITE", "[DEVICE_WRITE]\nauthUid=$currentAuthUid\ncompanyId=$companyId\ndeviceId=$deviceId\nresolution=Failed\noperation=SKIP\nreason=LOOKUP_FAILURE", resolution.exception)
-                    resolution
+                    return@withLock resolution
                 }
             }
         }
@@ -994,10 +885,9 @@ class CloudClient @JvmOverloads constructor(
 
         // 2. Canonical workspace is remotely confirmed
         val wsRes = resolveWorkspace(targetCompanyId)
-        val workspaceConfirmed = wsRes is WorkspaceResolution.ExistsAndOwned
+        val workspaceConfirmed = wsRes is WorkspaceResolution.ExistsAndOwned || wsRes is WorkspaceResolution.ExistsForeign
         if (!workspaceConfirmed) {
             val reason = when (wsRes) {
-                is WorkspaceResolution.ExistsForeign -> "Workspace owned by another identity (${wsRes.remoteCreatorUid})"
                 is WorkspaceResolution.NotFound -> "Workspace does not exist on remote"
                 is WorkspaceResolution.Unauthorized -> "Unauthorized to access workspace (${wsRes.code})"
                 is WorkspaceResolution.Failed -> "Failed to resolve workspace: ${wsRes.exception.message}"
@@ -1532,13 +1422,23 @@ class CloudClient @JvmOverloads constructor(
             .header("Prefer", "resolution=merge-duplicates")
             .post(json.toRequestBody(jsonMediaType))
             .build()
+        val hasAuth = !workspaceManager.currentAuthToken.isNullOrBlank() && !workspaceManager.isTokenExpired(workspaceManager.currentAuthToken)
+        val hasApiKey = !supabaseManager.supabaseAnonKey.isNullOrBlank()
+        Log.e(
+            "SYNC_DIAGNOSTIC",
+            "REQUEST | method=${request.method} | url=${request.url} | workspace=$companyId | hasAuth=$hasAuth | hasApiKey=$hasApiKey"
+        )
         try {
             client.newCall(request).execute().use { response ->
-                val isSuccess = response.isSuccessful
                 val httpCode = response.code
+                val body = response.body?.string() ?: ""
+                Log.e(
+                    "SYNC_DIAGNOSTIC",
+                    "RESPONSE | code=$httpCode | body=$body"
+                )
+                val isSuccess = response.isSuccessful
                 Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=UPLOAD_RECORD\nhttpCode=$httpCode\nsuccess=$isSuccess")
                 if (!isSuccess) {
-                    val body = response.body?.string() ?: ""
                     Log.e("CLOUD_RECORD_FORENSIC", "[CLOUD_RECORD_FORENSIC] uploadRecord failed httpStatus=$httpCode body=$body")
                     UploadRecordResult.HttpError(httpCode, body)
                 } else {
@@ -1546,6 +1446,11 @@ class CloudClient @JvmOverloads constructor(
                 }
             }
         } catch (e: Exception) {
+            Log.e(
+                "SYNC_DIAGNOSTIC",
+                "REQUEST EXCEPTION | method=${request.method} | url=${request.url} | workspace=$companyId | exception=${e.javaClass.simpleName}: ${e.message}",
+                e
+            )
             Log.e("CLOUD_RECORD_FORENSIC", "[CLOUD_RECORD_FORENSIC] uploadRecord exception for record ${record.id}", e)
             Log.i("AUTH_MUTATION_RESULT", "[AUTH_MUTATION_RESULT]\noperation=UPLOAD_RECORD\nhttpCode=0\nsuccess=false")
             UploadRecordResult.NetworkError(e)

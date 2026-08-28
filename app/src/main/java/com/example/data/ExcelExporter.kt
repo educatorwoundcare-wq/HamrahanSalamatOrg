@@ -593,9 +593,11 @@ object ExcelExporter {
                     "active_device_name" to "نام دستگاه همراه ثبت‌شده",
                     "active_device_status" to "وضعیت اتصال دستگاه همراه"
                 )
-                val infoRows = snapshot.systemSettings.map { setting ->
-                    Triple(setting.key, setting.value, settingsDesc[setting.key] ?: "تنظیمات سیستمی عمومی")
-                }
+                val infoRows = snapshot.systemSettings
+                    .filter { !it.key.contains("code", ignoreCase = true) && !it.key.contains("token", ignoreCase = true) && !it.key.contains("password", ignoreCase = true) && !it.key.contains("secret", ignoreCase = true) }
+                    .map { setting ->
+                        Triple(setting.key, setting.value, settingsDesc[setting.key] ?: "تنظیمات سیستمی عمومی")
+                    }
                 infoRows.forEachIndexed { index, item ->
                     val row = infoSheet.createRow(index + 3)
                     row.heightInPoints = 22f
@@ -617,9 +619,10 @@ object ExcelExporter {
                     "مشخصات عمومی، نوع استخدام، مدل و وضعیت پورسانت همکاران - همراهان سلامت",
                     listOf(
                         "شناسه همکار", "نام کامل پرسنل", "کد ملی", "شماره تماس", "تخصص/حرفه", 
-                        "سمت سازمانی", "نوع استخدام", "وضعیت فعالیت", "مدل محاسبه کارمزد", 
+                        "سمت سازمانی", "مهارت‌ها", "نوع استخدام", "وضعیت فعالیت", "مدل محاسبه کارمزد", 
                         "مقدار پایه پورسانت", "کل پورسانت مکتسبه", "کل تسویه‌شده (تومان)", 
-                        "پورسانت معوقه (طلبکار)", "کل پرداختی‌های دریافتی", "اطلاعات حساب بانکی", "شماره شبا (IBAN)"
+                        "پورسانت معوقه (طلبکار)", "کل پرداختی‌های دریافتی", "اطلاعات حساب بانکی", "شماره شبا (IBAN)",
+                        "تاریخ شروع کار", "یادداشت‌ها"
                     )
                 )
                 snapshot.personnel.forEachIndexed { index, emp ->
@@ -641,16 +644,19 @@ object ExcelExporter {
                     row.createSafeCell(3, emp.phone, style)
                     row.createSafeCell(4, emp.profession, style)
                     row.createSafeCell(5, emp.position, style)
-                    row.createSafeCell(6, emp.employmentType, style)
-                    row.createSafeCell(7, emp.status, style)
-                    row.createSafeCell(8, emp.commissionModel, style)
-                    row.createSafeCell(9, emp.commissionValue, if (emp.commissionModel == "درصدی") style else curStyle)
-                    row.createSafeCell(10, emp.totalSettledCommissions + emp.totalPendingCommissions, curStyle)
-                    row.createSafeCell(11, emp.totalSettledCommissions, curStyle)
-                    row.createSafeCell(12, emp.totalPendingCommissions, curStyle)
-                    row.createSafeCell(13, emp.totalPaymentsReceived, curStyle)
-                    row.createSafeCell(14, emp.bankInfo, style)
-                    row.createSafeCell(15, ibanVal, style)
+                    row.createSafeCell(6, emp.skill, style)
+                    row.createSafeCell(7, emp.employmentType, style)
+                    row.createSafeCell(8, emp.status, style)
+                    row.createSafeCell(9, emp.commissionModel, style)
+                    row.createSafeCell(10, emp.commissionValue, if (emp.commissionModel == "درصدی") style else curStyle)
+                    row.createSafeCell(11, emp.totalSettledCommissions + emp.totalPendingCommissions, curStyle)
+                    row.createSafeCell(12, emp.totalSettledCommissions, curStyle)
+                    row.createSafeCell(13, emp.totalPendingCommissions, curStyle)
+                    row.createSafeCell(14, emp.totalPaymentsReceived, curStyle)
+                    row.createSafeCell(15, emp.bankInfo, style)
+                    row.createSafeCell(16, ibanVal, style)
+                    row.createSafeCell(17, emp.startDate.formatDate(), dateStyle)
+                    row.createSafeCell(18, emp.notes, style)
                 }
                 val empTotalsRowIndex = snapshot.personnel.size + 3
                 val empTotalsRow = empSheet.createRow(empTotalsRowIndex)
@@ -663,8 +669,11 @@ object ExcelExporter {
                 empTotalsRow.createSafeCell(13, snapshot.personnel.sumOf { it.totalPaymentsReceived }, totalsValueStyle)
                 empTotalsRow.createSafeCell(14, "", totalsLabelStyle)
                 empTotalsRow.createSafeCell(15, "", totalsLabelStyle)
+                empTotalsRow.createSafeCell(16, "", totalsLabelStyle)
+                empTotalsRow.createSafeCell(17, "", totalsLabelStyle)
+                empTotalsRow.createSafeCell(18, "", totalsLabelStyle)
 
-                finalizeCustomSheet(empSheet, 16, empTotalsRowIndex)
+                finalizeCustomSheet(empSheet, 19, empTotalsRowIndex)
             }
 
 
@@ -684,7 +693,7 @@ object ExcelExporter {
                         "شناسه", "نام کامل بیمار", "جنسیت", "سن (سال)", "شماره تماس", 
                         "آدرس محل سکونت", "منبع ارجاع", "شناسه معرف / کد ارجاع", "وضعیت پرونده", "کل مبالغ فاکتورها (تومان)", 
                         "مبالغ پرداخت‌شده (تومان)", "باقیمانده بدهی (تومان)", "تعداد دفعات دریافت خدمت", 
-                        "تاریخ ثبت‌نام در مرکز", "توضیحات و یادداشت‌های بالینی"
+                        "تاریخ ثبت‌نام در مرکز", "برچسب‌ها", "توضیحات و یادداشت‌های بالینی"
                     )
                 )
                 Log.i("EXPORT_DEBUG", "LOG: Sheet Patients created")
@@ -696,7 +705,7 @@ object ExcelExporter {
                     val style = if (index % 2 == 1) stripeStyle else dataStyle
                     val curStyle = if (index % 2 == 1) currencyStripeStyle else currencyStyle
 
-                    val refId = snapshot.referralCommissions.find { it.patientId == p.id }?.referralId
+                    val refId = p.referralId ?: snapshot.referralCommissions.find { it.patientId == p.id }?.referralId
                         ?: snapshot.referrals.find { it.fullName == p.referralSource }?.id
                         ?: "-"
 
@@ -714,7 +723,8 @@ object ExcelExporter {
                     row.createSafeCell(11, p.remainingBalance, curStyle)
                     row.createSafeCell(12, p.servicesCount, style)
                     row.createSafeCell(13, p.registrationDate.formatDate(), dateStyle)
-                    row.createSafeCell(14, p.notes, style)
+                    row.createSafeCell(14, p.tags, style)
+                    row.createSafeCell(15, p.notes, style)
                 }
                 Log.i("EXPORT_DEBUG", "LOG: Rows written = ${snapshot.patients.size}")
                 System.out.println("EXPORT_DEBUG LOG: Rows written = ${snapshot.patients.size}")
@@ -729,7 +739,8 @@ object ExcelExporter {
                 patTotalsRow.createSafeCell(12, snapshot.patients.sumOf { it.servicesCount }, totalsValueStyle)
                 patTotalsRow.createSafeCell(13, "", totalsLabelStyle)
                 patTotalsRow.createSafeCell(14, "", totalsLabelStyle)
-                finalizeCustomSheet(patSheet, 15, patTotalsRowIndex)
+                patTotalsRow.createSafeCell(15, "", totalsLabelStyle)
+                finalizeCustomSheet(patSheet, 16, patTotalsRowIndex)
             }
 
 
@@ -741,9 +752,11 @@ object ExcelExporter {
                     "خدمات",
                     "کاتالوگ خدمات درمانی مرکز، تعرفه‌نامه‌ها و پورسانت‌های همکار - همراهان سلامت",
                     listOf(
-                        "شناسه خدمت", "نام نمایشی خدمت", "دسته‌بندی/گروه", "قیمت فروش مرکز (تومان)", 
-                        "دستمزد پیش‌فرض همکار", "مدت زمان تقریبی (دقیقه)", "دفعات انجام موفق", 
-                        "دفعات برنامه‌ریزی‌شده", "دفعات لغو شده", "وضعیت پذیرش خدمت"
+                        "شناسه خدمت", "کد رسمی خدمت", "نام رسمی خدمت", "نام نمایشی خدمت", "دسته‌بندی/گروه", 
+                        "تعرفه مصوب", "قیمت فروش مرکز (تومان)", "دستمزد پیش‌فرض همکار", "هزینه ایاب ذهاب", 
+                        "هزینه لوازم مصرفی", "تخفیف پیش‌فرض", "کارمزد همکار", "مدت زمان تقریبی (دقیقه)", 
+                        "واحد قیمت‌گذاری", "توضیحات", "دفعات انجام موفق", "دفعات برنامه‌ریزی‌شده", 
+                        "دفعات لغو شده", "وضعیت پذیرش خدمت"
                     )
                 )
                 snapshot.services.forEachIndexed { index, s ->
@@ -753,17 +766,26 @@ object ExcelExporter {
                     val curStyle = if (index % 2 == 1) currencyStripeStyle else currencyStyle
 
                     row.createSafeCell(0, s.id, style)
-                    row.createSafeCell(1, s.name, style)
-                    row.createSafeCell(2, s.category, style)
-                    row.createSafeCell(3, s.sellingPrice, curStyle)
-                    row.createSafeCell(4, s.defaultCost, curStyle)
-                    row.createSafeCell(5, s.durationMinutes, style)
-                    row.createSafeCell(6, s.timesCompleted, style)
-                    row.createSafeCell(7, s.timesScheduled, style)
-                    row.createSafeCell(8, s.timesCancelled, style)
-                    row.createSafeCell(9, s.status, style)
+                    row.createSafeCell(1, s.officialCode, style)
+                    row.createSafeCell(2, s.officialName, style)
+                    row.createSafeCell(3, s.name, style)
+                    row.createSafeCell(4, s.category, style)
+                    row.createSafeCell(5, s.officialTariff, curStyle)
+                    row.createSafeCell(6, s.sellingPrice, curStyle)
+                    row.createSafeCell(7, s.defaultCost, curStyle)
+                    row.createSafeCell(8, s.transportationCost, curStyle)
+                    row.createSafeCell(9, s.consumablesCost, curStyle)
+                    row.createSafeCell(10, s.discount, curStyle)
+                    row.createSafeCell(11, s.employeeCommission, curStyle)
+                    row.createSafeCell(12, s.durationMinutes, style)
+                    row.createSafeCell(13, s.pricingUnit, style)
+                    row.createSafeCell(14, s.description, style)
+                    row.createSafeCell(15, s.timesCompleted, style)
+                    row.createSafeCell(16, s.timesScheduled, style)
+                    row.createSafeCell(17, s.timesCancelled, style)
+                    row.createSafeCell(18, s.status, style)
                 }
-                finalizeCustomSheet(srvSheet, 10, snapshot.services.size + 2)
+                finalizeCustomSheet(srvSheet, 19, snapshot.services.size + 2)
             }
 
 
@@ -1763,10 +1785,10 @@ object ExcelExporter {
 
                 ReportingLayer.PersonnelReportDto(
                     id = emp.id, fullName = emp.fullName, nationalId = emp.nationalId, phone = emp.phone,
-                    profession = emp.profession, position = emp.position, employmentType = emp.employmentType,
+                    profession = emp.profession, position = emp.position, skill = emp.skill, employmentType = emp.employmentType,
                     status = emp.status, commissionModel = emp.commissionModel, commissionValue = emp.commissionValue,
                     totalSettledCommissions = settled, totalPendingCommissions = pending, totalPaymentsReceived = payments,
-                    bankInfo = emp.bankInfo
+                    bankInfo = emp.bankInfo, startDate = emp.startDate, notes = emp.notes
                 )
             },
             patients = (patients ?: emptyList()).map { p ->
@@ -1775,16 +1797,19 @@ object ExcelExporter {
                 val totalPaid = pRegs.filter { it.isPaid }.sumOf { it.finalPrice }
                 ReportingLayer.PatientReportDto(
                     id = p.id, fullName = p.fullName, gender = p.gender, age = p.age, phone = p.phone, address = p.address,
-                    referralSource = p.referralSource, status = p.status, totalInvoiced = totalInvoiced, totalPaid = totalPaid,
-                    remainingBalance = totalInvoiced - totalPaid, servicesCount = pRegs.size, registrationDate = p.registrationDate, notes = p.notes
+                    referralSource = p.referralSource, referralId = p.referralId, status = p.status, totalInvoiced = totalInvoiced, totalPaid = totalPaid,
+                    remainingBalance = totalInvoiced - totalPaid, servicesCount = pRegs.size, registrationDate = p.registrationDate, notes = p.notes, tags = p.tags
                 )
             },
             nursingHistories = emptyList(),
             services = (services ?: emptyList()).map { s ->
                 val sRegs = regsByService[s.id] ?: emptyList()
                 ReportingLayer.ServiceReportDto(
-                    id = s.id, name = s.name, category = s.category, sellingPrice = s.sellingPrice, defaultCost = s.defaultCost,
-                    durationMinutes = s.durationMinutes, timesCompleted = sRegs.filter { it.isPaid }.size,
+                    id = s.id, officialCode = s.officialCode, officialName = s.officialName, name = s.name, category = s.category, 
+                    officialTariff = s.officialTariff, sellingPrice = s.sellingPrice, defaultCost = s.defaultCost,
+                    transportationCost = s.transportationCost, consumablesCost = s.consumablesCost, discount = s.discount, 
+                    employeeCommission = s.employeeCommission, durationMinutes = s.durationMinutes, description = s.description, pricingUnit = s.pricingUnit,
+                    timesCompleted = sRegs.filter { it.isPaid }.size,
                     timesScheduled = sRegs.filter { !it.isPaid }.size, timesCancelled = 0, status = if (s.isActive) "فعال" else "غیرفعال"
                 )
             },
