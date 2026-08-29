@@ -319,6 +319,17 @@ class HamrahanViewModel @JvmOverloads constructor(
     val currentUserRole: StateFlow<String> = systemSettings.map { settings ->
         settings.find { it.key == "active_device_role" }?.value ?: "Mother Account"
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Mother Account")
+    
+    val isMasterDevice: StateFlow<Boolean> = systemSettings.map { settings ->
+        val role = settings.find { it.key == "active_device_role" }?.value ?: ""
+        val status = settings.find { it.key == "active_device_status" }?.value ?: ""
+        val compId = settings.find { it.key == "company_id" }?.value ?: ""
+        
+        val isMaster = (role == "Mother Account" || role == "Admin" || role == "GM" || role == "General Manager") && status == "Active" && compId.isNotEmpty()
+        
+        Log.d("PAIRING_RECEIVER", "PAIRING_RECEIVER_MASTER_CHECK isMaster=$isMaster role=$role status=$status companyId=$compId")
+        isMaster
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
 
     // --- System Settings ---
@@ -372,6 +383,9 @@ class HamrahanViewModel @JvmOverloads constructor(
 
     // --- Developer Mode ---
     private val _isDeveloperMode = MutableStateFlow(false)
+    
+    val diagnosticEvents: StateFlow<List<com.example.data.DiagnosticEvent>> = repository.dao.getDiagnosticEventsFlow(100)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val isDeveloperMode: StateFlow<Boolean> = _isDeveloperMode.asStateFlow()
 
     fun toggleDeveloperMode() {
@@ -380,6 +394,78 @@ class HamrahanViewModel @JvmOverloads constructor(
         updateSystemSetting("developer_mode", newVal.toString())
     }
     
+
+    
+    // --- Secure Master Password Auth ---
+    private var devSessionValidUntil: Long = 0L
+    private var devAuthFailedAttempts: Int = 0
+    private var devAuthLockoutUntil: Long = 0L
+
+    val devAuthLockoutRemaining: kotlinx.coroutines.flow.StateFlow<Long> = kotlinx.coroutines.flow.flow {
+        while (true) {
+            val remaining = devAuthLockoutUntil - System.currentTimeMillis()
+            emit(if (remaining > 0) remaining else 0L)
+            kotlinx.coroutines.delay(1000)
+        }
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), 0L)
+
+    fun isDevSessionValid(): Boolean {
+        return System.currentTimeMillis() < devSessionValidUntil
+    }
+
+    fun keepDevSessionAlive() {
+        if (isDevSessionValid()) {
+            devSessionValidUntil = System.currentTimeMillis() + 5 * 60 * 1000L
+        }
+    }
+
+    fun verifyDevPin(pin: String): Boolean {
+        if (System.currentTimeMillis() < devAuthLockoutUntil) {
+            viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "WARNING", "DEVELOPER_AUTH_LOCKOUT", "Attempted while locked out") }
+            return false
+        }
+        
+        // Normalize Persian digits to English
+        val englishPin = pin
+            .replace("۰", "0")
+            .replace("۱", "1")
+            .replace("۲", "2")
+            .replace("۳", "3")
+            .replace("۴", "4")
+            .replace("۵", "5")
+            .replace("۶", "6")
+            .replace("۷", "7")
+            .replace("۸", "8")
+            .replace("۹", "9")
+
+        val hash = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(englishPin.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
+        if (hash == "1e3803e3f3e1f286d8945c5e052b8f7a6e304416fe2d3e5f7be0dafed8a0ecf7") {
+            devAuthFailedAttempts = 0
+            devSessionValidUntil = System.currentTimeMillis() + 5 * 60 * 1000L
+            viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "INFO", "DEVELOPER_AUTH_SUCCESS", "Authentication successful") }
+            return true
+        } else {
+            devAuthFailedAttempts++
+            if (devAuthFailedAttempts >= 3) {
+                devAuthLockoutUntil = System.currentTimeMillis() + 30_000L
+                viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "WARNING", "DEVELOPER_AUTH_LOCKOUT", "Lockout triggered due to 3 failed attempts") }
+            } else {
+                viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "WARNING", "DEVELOPER_AUTH_FAILURE", "Authentication failed") }
+            }
+            return false
+        }
+    }
+    
+    fun notifyDevAuthScreenOpened() {
+        viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "INFO", "DEVELOPER_AUTH_SCREEN_OPENED", "Developer Authentication Screen Opened") }
+    }
+    
+    fun notifyDevSessionExpired() {
+        viewModelScope.launch { repository.logDiagnosticEvent("AUTH", "INFO", "DEVELOPER_SESSION_EXPIRED", "Developer Session Expired") }
+    }
 
     fun updateCurrentUserRole(role: String) {
         updateSystemSetting("active_device_role", role)
@@ -803,79 +889,19 @@ class HamrahanViewModel @JvmOverloads constructor(
 
     val failedSyncCount = kotlinx.coroutines.flow.MutableStateFlow(0)
 
-    private val _livePendingDevices = kotlinx.coroutines.flow.MutableStateFlow<List<ConnectedDevice>>(emptyList())
-    val livePendingDevices: StateFlow<List<ConnectedDevice>> = _livePendingDevices.asStateFlow()
-
-    private var pairingPollingJob: kotlinx.coroutines.Job? = null
+    val livePendingDevices: StateFlow<List<ConnectedDevice>> = repository.pairingRequestMonitor.pendingRequests
 
     fun startPairingPolling() {
-        if (pairingPollingJob?.isActive == true) return
-        pairingPollingJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            while (true) {
-                refreshPairingRequests()
-                kotlinx.coroutines.delay(10000) // 10 seconds polling fallback
-            }
-        }
+        repository.pairingRequestMonitor.startMonitoring(viewModelScope)
     }
 
     fun stopPairingPolling() {
-        pairingPollingJob?.cancel()
-        pairingPollingJob = null
+        repository.pairingRequestMonitor.stopMonitoring()
     }
 
     fun refreshPairingRequests() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val companyId = repository.dao.getSystemSettingByKey("company_id") ?: return@launch
-            if (companyId.isBlank()) return@launch
-            val currentDeviceId = repository.dao.getSystemSettingByKey("active_device_id") ?: com.example.data.WorkspaceManager.getInstance(repository.context).getDeviceId()
-            val userRole = repository.dao.getSystemSettingByKey("user_role") ?: ""
-            val authTokenPresent = !com.example.data.WorkspaceManager.getInstance(repository.context).currentAuthToken.isNullOrBlank()
-
-            Log.d("PAIRING_DIAG", "PAIRING_DIAG_START\ndeviceId=$currentDeviceId\ncompanyId=$companyId\nuid=${com.example.data.WorkspaceManager.getInstance(repository.context).currentAuthUid}\nuserRole=$userRole\nauthTokenPresent=$authTokenPresent\nrequestUrl=/connected_devices?company_id=eq.$companyId\nhttpMethod=GET")
-
-            try {
-                // To log raw HTTP result, we would need to intercept inside getConnectedDevices, 
-                // but since we can't change CloudClient, we log immediately after fetching
-                val remoteDevices = repository.cloudClient.getConnectedDevices(companyId)
-                
-                Log.d("PAIRING_DIAG", "PAIRING_DIAG_HTTP\nstatus=200\nsuccess=true\nresponseLength=${remoteDevices.size}")
-                
-                val totalDevices = remoteDevices.size
-                val pendingRemoteCount = remoteDevices.count { it.status.equals("Pending", ignoreCase = true) }
-                val companyIds = remoteDevices.map { it.companyId }.joinToString(",")
-                val deviceIds = remoteDevices.map { it.deviceId }.joinToString(",")
-                val statuses = remoteDevices.map { it.status }.joinToString(",")
-                
-                Log.d("PAIRING_DIAG", "PAIRING_DIAG_PARSED\ntotalDevices=$totalDevices\npendingDevices=$pendingRemoteCount\ncompanyIds=[$companyIds]\ndeviceIds=[$deviceIds]\nstatuses=[$statuses]")
-
-                val afterCompanyFilter = remoteDevices.size // the endpoint filters by companyId already
-                val afterPendingFilter = remoteDevices.filter { it.status.equals("Pending", ignoreCase = true) }.size
-                
-                val pending = remoteDevices.filter { 
-                    it.status.equals("Pending", ignoreCase = true) && it.deviceId != currentDeviceId 
-                }
-                
-                Log.d("PAIRING_DIAG", "PAIRING_DIAG_FILTER\nbefore=$totalDevices\nafterCompanyFilter=$afterCompanyFilter\nafterPendingFilter=$afterPendingFilter\nafterCurrentDeviceFilter=${pending.size}\ncurrentDeviceId=$currentDeviceId")
-
-                val oldCount = _livePendingDevices.value.size
-                val newCount = pending.size
-                val newDeviceIds = pending.map { it.deviceId }.joinToString(",")
-                
-                Log.d("PAIRING_DIAG", "PAIRING_DIAG_STATE\noldCount=$oldCount\nnewCount=$newCount\nnewDeviceIds=[$newDeviceIds]")
-
-                _livePendingDevices.value = pending
-                
-                // Keep local DB somewhat in sync purely for these pending items, without touching SyncWorker
-                pending.forEach { dev ->
-                    val existing = repository.dao.getConnectedDeviceById(dev.deviceId)
-                    if (existing == null || existing.status == "Pending") {
-                        repository.dao.insertConnectedDevice(dev)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("PAIRING_DIAG", "PAIRING_DIAG_HTTP_ERROR\nstatus=-1\nerrorBody=${e.message}")
-                Log.e("HamrahanViewModel", "Error fetching pairing requests", e)
-            }
+        viewModelScope.launch {
+            repository.pairingRequestMonitor.performCheck()
         }
     }
 
@@ -1496,7 +1522,8 @@ class HamrahanViewModel @JvmOverloads constructor(
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error resolving alert for approved device", e)
                     }
-                    _livePendingDevices.value = _livePendingDevices.value.filter { it.deviceId != deviceId }
+                    repository.pairingRequestMonitor.removeDeviceOptimistically(deviceId)
+                    refreshPairingRequests()
                     repository.syncEngine?.triggerSync()
                 } else {
                     Log.e("HamrahanViewModel", "[PAIRING_POPUP] Device approval failed on cloud for deviceId=$deviceId")
@@ -1542,7 +1569,8 @@ class HamrahanViewModel @JvmOverloads constructor(
                     } catch (e: Exception) {
                         Log.e("HamrahanViewModel", "Error resolving alert for rejected device", e)
                     }
-                    _livePendingDevices.value = _livePendingDevices.value.filter { it.deviceId != deviceId }
+                    repository.pairingRequestMonitor.removeDeviceOptimistically(deviceId)
+                    refreshPairingRequests()
                     repository.syncEngine?.triggerSync()
                 } else {
                     Log.e("HamrahanViewModel", "[PAIRING_POPUP] Device rejection failed on cloud for deviceId=$deviceId")

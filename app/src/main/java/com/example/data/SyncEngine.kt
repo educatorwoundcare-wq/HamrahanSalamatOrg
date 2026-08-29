@@ -87,6 +87,34 @@ class SyncEngine @JvmOverloads constructor(
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     private val syncMutex = Mutex()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
+    suspend fun logDiagnostic(
+        category: String,
+        level: String,
+        summary: String,
+        details: String = "",
+        entityType: String = "",
+        entityId: String = ""
+    ) {
+        try {
+            dao.insertDiagnosticEvent(
+                DiagnosticEvent(
+                    category = category,
+                    level = level,
+                    summary = summary,
+                    details = details,
+                    entityType = entityType,
+                    entityId = entityId
+                )
+            )
+            if (Math.random() < 0.05) {
+                dao.pruneDiagnosticEvents()
+            }
+        } catch (e: Exception) {
+            Log.e("SyncEngine", "Failed to log diagnostic event", e)
+        }
+    }
+
     private var currentRetryDelay = 5000L
     private val minRetryDelay = 5000L
     private val maxRetryDelay = 600000L // 10 minutes max backoff
@@ -389,15 +417,33 @@ class SyncEngine @JvmOverloads constructor(
                 ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
                 ?: ""
 
-            for (meta in pendingMetadata) {
+            for (staleMeta in pendingMetadata) {
+                val meta = dao.getSyncMetadata(staleMeta.entityType, staleMeta.entityId) ?: continue
+
                 val operationUuid = meta.entityId
                 val entityType = meta.entityType
                 val operationType = if (meta.deletedStatus) "DELETE" else "UPSERT"
                 val lastAttemptTs = System.currentTimeMillis()
 
+                if (entityType == "FixedExpenseTemplate") {
+                    Log.i("SYNC_FIXED_EXPENSE", "SYNC_FIXED_EXPENSE_OPERATION operation=$operationType entityType=$entityType entityId=$operationUuid")
+                }
+
                 try {
-                    // Fetch local record
-                    val localDataJson = fetchLocalRecordJson(meta.entityType, meta.entityId)
+                    // Fetch local record only for UPSERT. For DELETE, we must not query the local DB.
+                    val localDataJson = if (!meta.deletedStatus) {
+                        val json = fetchLocalRecordJson(meta.entityType, meta.entityId)
+                        if (entityType == "FixedExpenseTemplate") {
+                            Log.i("SYNC_FIXED_EXPENSE", "SYNC_FIXED_EXPENSE_LOCAL_RECORD_FOUND=${json != null}")
+                        }
+                        json
+                    } else {
+                        if (entityType == "FixedExpenseTemplate") {
+                            Log.i("SYNC_FIXED_EXPENSE", "SYNC_FIXED_EXPENSE_DELETE_NO_LOCAL_LOOKUP")
+                        }
+                        null
+                    }
+
                     if (localDataJson == null && !meta.deletedStatus) {
                         // G. Serialization / parsing failure (or missing local record)
                         val lastError = "Local record data could not be found or serialized for $entityType with ID $operationUuid"
@@ -434,6 +480,16 @@ class SyncEngine @JvmOverloads constructor(
                             )
                         )
                         continue
+                    }
+
+                    if (meta.deletedStatus) {
+                        val existingCloudRec = dao.getAllCloudSyncRecords().find { it.id == "${meta.entityType}_${meta.entityId}" }
+                        if (existingCloudRec == null) {
+                            Log.i("SYNC_QUEUE", "Skipping DELETE for ${meta.entityType}_${meta.entityId} because it never existed in cloud.")
+                            dao.deleteSyncMetadata(meta.entityType, meta.entityId)
+                            successfulUploads++
+                            continue
+                        }
                     }
 
                     if (canonicalCompanyId.isBlank()) {
@@ -686,6 +742,11 @@ class SyncEngine @JvmOverloads constructor(
                             failureReasonDescription = classification.descriptionFa + ": " + errMsg
                         )
                     )
+                }
+
+                if (entityType == "FixedExpenseTemplate") {
+                    val finalState = dao.getSyncMetadata(entityType, operationUuid)
+                    Log.i("SYNC_FIXED_EXPENSE", "SYNC_FIXED_EXPENSE_QUEUE_STATE entityId=$operationUuid status=${finalState?.syncStatus} isDeleted=${finalState?.deletedStatus}")
                 }
             }
 

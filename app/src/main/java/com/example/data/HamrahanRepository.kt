@@ -14,6 +14,8 @@ class HamrahanRepository @JvmOverloads constructor(
     var syncEngine: SyncEngine? = null,
     val cloudClient: CloudClient = CloudClient(dao, context)
 ) {
+    val pairingRequestMonitor = PairingRequestMonitor(cloudClient, dao, WorkspaceManager.getInstance(context))
+
     suspend fun registerLocalChange(entityType: String, entityId: String, isDeleted: Boolean = false) {
         val activeDeviceId = DeviceIdentityProvider.getDeviceId(context)
         val meta = SyncMetadata(
@@ -26,6 +28,30 @@ class HamrahanRepository @JvmOverloads constructor(
         )
         dao.insertSyncMetadata(meta)
         syncEngine?.triggerSync()
+    }
+
+    suspend fun logDiagnosticEvent(
+        category: String,
+        level: String,
+        summary: String,
+        details: String = "",
+        entityType: String = "",
+        entityId: String = ""
+    ) {
+        val event = DiagnosticEvent(
+            category = category,
+            level = level,
+            summary = summary,
+            details = details,
+            entityType = entityType,
+            entityId = entityId
+        )
+        dao.insertDiagnosticEvent(event)
+        
+        // Randomly prune to keep max 5000 events to save IO cost
+        if (Math.random() < 0.05) {
+            dao.pruneDiagnosticEvents()
+        }
     }
 
     val pairingApprovalEvents: SharedFlow<ConnectedDevice>

@@ -644,43 +644,76 @@ class CloudClient @JvmOverloads constructor(
     }
 
     suspend fun ensureAuthSession(targetCompanyId: String? = null, targetSyncCode: String? = null): com.example.data.supabase.AuthResult {
+        Log.i("AUTH_TRACE", "AUTH_IDENTITY_CHECK_START")
+        
         val currentToken = workspaceManager.currentAuthToken
         val isExpired = workspaceManager.isTokenExpired(currentToken)
         val authRepo = com.example.data.supabase.SupabaseAuthRepository(supabaseManager, workspaceManager)
         
+        val storedAuthUserId = workspaceManager.currentAuthUid
+        val companyId = targetCompanyId ?: dao?.getSystemSettingByKey("company_id") ?: ""
+        val deviceId = dao?.getSystemSettingByKey("active_device_id") ?: workspaceManager.getDeviceId()
+        
+        Log.i("AUTH_TRACE", "AUTH_IDENTITY_CURRENT storedAuthUserId=$storedAuthUserId companyId=$companyId deviceId=$deviceId sessionExists=${!currentToken.isNullOrBlank()} accessTokenValid=${!currentToken.isNullOrBlank() && !isExpired}")
+
         if (currentToken.isNullOrBlank() || isExpired) {
             var refreshed = false
+            var refreshAttempted = false
+            var refreshSucceeded = false
+            
             if (!workspaceManager.currentRefreshToken.isNullOrBlank()) {
-                Log.i("AUTH_TRACE", "Token expired. Attempting refresh...")
+                refreshAttempted = true
+                Log.i("AUTH_TRACE", "AUTH_SESSION_REFRESH_START")
                 val refreshResult = authRepo.refreshSession()
                 if (refreshResult is com.example.data.supabase.AuthResult.Success) {
                     refreshed = true
-                    Log.i("AUTH_TRACE", "Session refreshed successfully.")
+                    refreshSucceeded = true
+                    Log.i("AUTH_TRACE", "AUTH_SESSION_REFRESH_SUCCESS")
+                } else {
+                    Log.i("AUTH_TRACE", "AUTH_SESSION_REFRESH_FAILURE")
                 }
             }
             
             if (!refreshed) {
-                val companyId = targetCompanyId ?: dao?.getSystemSettingByKey("company_id") ?: ""
-                val syncCode = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code") ?: ""
-                
-                Log.i("AUTH_TRACE", "Token missing/expired. Authenticating anonymously for companyId=$companyId, syncCode=$syncCode")
-                val authResult = authRepo.signInAnonymously(companyId, syncCode)
-                if (authResult !is com.example.data.supabase.AuthResult.Success) {
-                    Log.e("AUTH_TRACE", "Anonymous authentication failed: $authResult")
-                    return authResult
+                if (!storedAuthUserId.isNullOrBlank()) {
+                    Log.e("AUTH_TRACE", "AUTH_IDENTITY_DRIFT_DETECTED: Stored UID exists ($storedAuthUserId) but session is unrecoverable.")
+                    Log.e("AUTH_TRACE", "AUTH_ANONYMOUS_FALLBACK_BLOCKED: Refusing to create new anonymous identity for existing device.")
+                    Log.e("AUTH_TRACE", "AUTH_SESSION_UNRECOVERABLE")
+                    return com.example.data.supabase.AuthResult.Error("AUTH_SESSION_UNRECOVERABLE")
+                } else {
+                    val syncCode = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code") ?: ""
+                    
+                    Log.i("AUTH_TRACE", "Token missing/expired. Authenticating anonymously for companyId=$companyId, syncCode=$syncCode")
+                    val authResult = authRepo.signInAnonymously(companyId, syncCode)
+                    if (authResult !is com.example.data.supabase.AuthResult.Success) {
+                        Log.e("AUTH_TRACE", "Anonymous authentication failed: $authResult")
+                        return authResult
+                    }
                 }
             }
         }
         
         val finalToken = workspaceManager.currentAuthToken
         if (finalToken.isNullOrBlank() || workspaceManager.isTokenExpired(finalToken)) {
+            Log.e("AUTH_TRACE", "AUTH_SESSION_UNRECOVERABLE")
             return com.example.data.supabase.AuthResult.Error("Failed to obtain valid session token.")
         }
         
-        val authUid = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(finalToken)
+        val currentAuthUserId = workspaceManager.currentAuthUid ?: workspaceManager.extractSubFromJwt(finalToken)
+        
+        Log.i("AUTH_TRACE", "PAIRING_AUTH_IDENTITY_CHECK storedAuthUserId=$storedAuthUserId currentAuthUserId=$currentAuthUserId companyId=$companyId deviceId=$deviceId sessionExists=${!finalToken.isNullOrBlank()} accessTokenValid=${!workspaceManager.isTokenExpired(finalToken)}")
+        
+        if (!storedAuthUserId.isNullOrBlank() && currentAuthUserId != storedAuthUserId) {
+            Log.e("AUTH_TRACE", "AUTH_IDENTITY_DRIFT_DETECTED: $storedAuthUserId != $currentAuthUserId")
+            return com.example.data.supabase.AuthResult.Error("AUTH_IDENTITY_DRIFT_DETECTED")
+        }
+        
+        Log.i("AUTH_TRACE", "AUTH_IDENTITY_CHECK_SUCCESS")
+        Log.i("AUTH_TRACE", "PAIRING_AUTH_READY authUserId=$currentAuthUserId companyId=$companyId deviceId=$deviceId tokenPresent=true")
+        
         val localCompany = targetCompanyId ?: workspaceManager.currentTenantId ?: dao?.getSystemSettingByKey("company_id")
         val localSync = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code")
-        Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$authUid localCompanyId=$localCompany localSyncCode=$localSync remoteCreatorUid=N/A decision=ENSURE_AUTH_SESSION")
+        Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$currentAuthUserId localCompanyId=$localCompany localSyncCode=$localSync remoteCreatorUid=N/A decision=ENSURE_AUTH_SESSION")
         
         return com.example.data.supabase.AuthResult.Success
     }

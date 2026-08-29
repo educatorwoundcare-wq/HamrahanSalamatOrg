@@ -612,7 +612,9 @@ fun MainNavGraph(navController: androidx.navigation.NavHostController, viewModel
         composable<Commissions> { CommissionScreen(viewModel = viewModel) }
         composable<Reports> { ReportScreen(viewModel = viewModel) }
         composable<Search> { SearchScreen(viewModel = viewModel) }
-        composable<Settings> { SettingsScreen(viewModel = viewModel) }
+        composable<Settings> { SettingsScreen(viewModel = viewModel, navController = navController) }
+        composable<DeveloperAuth> { com.example.ui.dev.DeveloperAuthScreen(viewModel = viewModel, navController = navController) }
+        composable<DeveloperControlCenter> { com.example.ui.dev.DeveloperControlCenterScreen(viewModel = viewModel, navController = navController) }
         composable<CompanyProfile> { CompanyProfileScreen(viewModel = viewModel) }
         
         composable<SyncManagement> {

@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -103,27 +104,30 @@ fun DashboardScreen(
     val resolvedAlerts by viewModel.resolvedAlerts.collectAsState()
     var alertFilterTab by remember { mutableStateOf("همه") }
     var dashboardTab by remember { mutableStateOf(0) } // 0 = خلاصه مالی و عملیاتی, 1 = تاریخچه فعالیت‌ها, 2 = صندوق پیام‌ها
-    val connectedDevices by viewModel.connectedDevices.collectAsState()
-    val livePendingDevices by viewModel.livePendingDevices.collectAsState()
-    val pendingDevices = livePendingDevices
-    val userRole by viewModel.currentUserRole.collectAsState()
-    val isMotherOrAdmin = userRole == "Mother Account" || userRole == "Admin" || userRole == "GM" || userRole == "General Manager" || userRole.isBlank()
+    val connectedDevices by viewModel.connectedDevices.collectAsStateWithLifecycle()
+    val pendingRequests by viewModel.livePendingDevices.collectAsStateWithLifecycle()
+    val userRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
+    val isMasterDevice by viewModel.isMasterDevice.collectAsStateWithLifecycle()
+    
+    // We only need local dismissal for the dialog. The persistent section remains visible.
+    var dismissedPendingDevices by remember { mutableStateOf(setOf<String>()) }
+    val visiblePendingDevicesForDialog = pendingRequests.filter { it.deviceId !in dismissedPendingDevices }
+    val shouldShowDialog = isMasterDevice && visiblePendingDevicesForDialog.isNotEmpty()
+
     var isQuickActionsExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    
-    var dismissedPendingDevices by remember { mutableStateOf(setOf<String>()) }
-    val visiblePendingDevices = pendingDevices.filter { it.deviceId !in dismissedPendingDevices }
 
-    LaunchedEffect(livePendingDevices, visiblePendingDevices, isMotherOrAdmin) {
-        android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${livePendingDevices.size}\npendingDeviceIds=[${livePendingDevices.map { it.deviceId }.joinToString(",")}]\nvisibleCount=${visiblePendingDevices.size}\nisMotherOrAdmin=$isMotherOrAdmin")
+    LaunchedEffect(pendingRequests, isMasterDevice) {
+        android.util.Log.d("PAIRING_DEBUG", "PAIRING_DEBUG_MASTER_DEVICE=$isMasterDevice")
+        android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${pendingRequests.size}\npendingDeviceIds=[${pendingRequests.map { it.deviceId }.joinToString(",")}]\nisMasterDevice=$isMasterDevice")
     }
 
-    if (isMotherOrAdmin && visiblePendingDevices.isNotEmpty()) {
+    if (shouldShowDialog) {
+        android.util.Log.d("PAIRING_DEBUG", "PAIRING_DEBUG_SHOWING_APPROVAL_DIALOG")
         androidx.compose.ui.window.Dialog(
             onDismissRequest = {
-                // If user clicks outside, mark them as dismissed for this session so we don't spam
-                dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevices.map { it.deviceId }.toSet()
+                dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevicesForDialog.map { it.deviceId }.toSet()
             },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
         ) {
@@ -149,7 +153,7 @@ fun DashboardScreen(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = if (visiblePendingDevices.size > 1) "درخواست‌های اتصال جدید: ${visiblePendingDevices.size}" else "🔔 درخواست اتصال دستگاه جدید",
+                            text = if (visiblePendingDevicesForDialog.size > 1) "درخواست‌های اتصال جدید: ${visiblePendingDevicesForDialog.size}" else "🔔 درخواست اتصال دستگاه جدید",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF92400E)
@@ -166,7 +170,7 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(visiblePendingDevices, key = { it.deviceId }) { dev ->
+                        items(visiblePendingDevicesForDialog, key = { it.deviceId }) { dev ->
                             com.example.ui.components.PairingRequestCard(
                                 device = dev,
                                 onApprove = { 
@@ -185,7 +189,7 @@ fun DashboardScreen(
                     
                     TextButton(
                         onClick = {
-                            dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevices.map { it.deviceId }.toSet()
+                            dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevicesForDialog.map { it.deviceId }.toSet()
                         },
                         modifier = Modifier.align(Alignment.End)
                     ) {
@@ -203,14 +207,20 @@ fun DashboardScreen(
         }
     }
 
+    OnLifecycleEvent { _, event ->
+        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+            viewModel.refreshPairingRequests()
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.runAlertDiagnostics(context)
     }
 
-    LaunchedEffect(pendingDevices.size, activeAlerts.size) {
-        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] pendingDevices count=${pendingDevices.size}")
+    LaunchedEffect(pendingRequests.size, activeAlerts.size) {
+        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] pendingDevices count=${pendingRequests.size}")
         android.util.Log.d("PAIRING_UI", "[PAIRING_UI] activeAlerts count=${activeAlerts.size}")
-        pendingDevices.forEach { dev ->
+        pendingRequests.forEach { dev ->
             android.util.Log.d("PAIRING_UI", "[PAIRING_UI] Pending device visible deviceId=${dev.deviceId}")
         }
     }
@@ -577,6 +587,28 @@ fun DashboardScreen(
                 .testTag("dashboard_screen"),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // --- Forensic Temporary Marker ---
+            item {
+                if (androidx.compose.ui.platform.LocalInspectionMode.current || true) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0B2))) {
+                        Text("PAIRING DEBUG | Master: $isMasterDevice | Pending: ${pendingRequests.size}", modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                    }
+                }
+            }
+            
+            // --- Primary Rendering of Pending Requests ---
+            if (isMasterDevice) {
+                item {
+                    com.example.ui.components.PairingRequestsSection(
+                        pendingDevices = pendingRequests,
+                        onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
+                        onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
+                        onRefresh = { viewModel.refreshPairingRequests() },
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+            }
+
             // --- Header Banner ---
             item {
                 com.example.ui.components.EnterpriseCard(
@@ -740,17 +772,6 @@ fun DashboardScreen(
             }
 
             // --- Sub-Navigation Tabs (Enterprise & Notification Center) ---
-            if (isMotherOrAdmin) {
-                item {
-                    com.example.ui.components.PairingRequestsSection(
-                        pendingDevices = pendingDevices,
-                        onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
-                        onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
-                        onRefresh = { viewModel.refreshPairingRequests() },
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
-            }
             item {
                 TabRow(
                     selectedTabIndex = dashboardTab,

@@ -722,4 +722,20 @@ interface HamrahanDao {
 
     @Query("DELETE FROM sync_queue WHERE status = 'COMPLETED'")
     suspend fun deleteCompletedSyncTasks()
+
+    // --- DiagnosticEvent Queries ---
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDiagnosticEvent(event: DiagnosticEvent)
+
+    @Query("SELECT * FROM diagnostic_events ORDER BY timestamp DESC LIMIT :limit")
+    fun getDiagnosticEventsFlow(limit: Int = 5000): kotlinx.coroutines.flow.Flow<List<DiagnosticEvent>>
+
+    @Query("SELECT * FROM diagnostic_events WHERE category = :category ORDER BY timestamp DESC LIMIT :limit")
+    fun getDiagnosticEventsByCategoryFlow(category: String, limit: Int = 5000): kotlinx.coroutines.flow.Flow<List<DiagnosticEvent>>
+    
+    @Query("DELETE FROM diagnostic_events WHERE id NOT IN (SELECT id FROM diagnostic_events ORDER BY timestamp DESC LIMIT :keepCount)")
+    suspend fun pruneDiagnosticEvents(keepCount: Int = 5000)
+
+    @Query("DELETE FROM diagnostic_events")
+    suspend fun clearAllDiagnosticEvents()
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,7 +52,8 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
     val pendingChangesCount by viewModel.pendingChangesCount.collectAsState()
     val failedSyncCount by viewModel.failedSyncCount.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
-    val livePendingDevices by viewModel.livePendingDevices.collectAsState()
+    val livePendingDevices by viewModel.livePendingDevices.collectAsStateWithLifecycle()
+    val isMasterDevice by viewModel.isMasterDevice.collectAsStateWithLifecycle()
 
     val activeDeviceId by viewModel.activeDeviceId.collectAsState()
     val activeDeviceName by viewModel.activeDeviceName.collectAsState()
@@ -86,6 +88,12 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
         viewModel.startPairingPolling()
         onDispose {
             viewModel.stopPairingPolling()
+        }
+    }
+
+    OnLifecycleEvent { _, event ->
+        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+            viewModel.refreshPairingRequests()
         }
     }
 
@@ -792,22 +800,24 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    val pendingDevices = livePendingDevices
-                    com.example.ui.components.PairingRequestsSection(
-                        pendingDevices = pendingDevices,
-                        onApprove = { dev ->
-                            viewModel.approveDeviceAccess(dev.deviceId)
-                            snackbarMessage = "دسترسی دستگاه «${dev.deviceName}» با موفقیت تایید شد."
-                            showSuccessSnackbar = true
-                        },
-                        onReject = { dev ->
-                            viewModel.rejectDeviceAccess(dev.deviceId)
-                            snackbarMessage = "درخواست دستگاه «${dev.deviceName}» رد شد."
-                            showSuccessSnackbar = true
-                        },
-                        onRefresh = { viewModel.refreshPairingRequests() },
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
+                    if (isMasterDevice) {
+                        val pendingDevices = livePendingDevices
+                        com.example.ui.components.PairingRequestsSection(
+                            pendingDevices = pendingDevices,
+                            onApprove = { dev ->
+                                viewModel.approveDeviceAccess(dev.deviceId)
+                                snackbarMessage = "دسترسی دستگاه «${dev.deviceName}» با موفقیت تایید شد."
+                                showSuccessSnackbar = true
+                            },
+                            onReject = { dev ->
+                                viewModel.rejectDeviceAccess(dev.deviceId)
+                                snackbarMessage = "درخواست دستگاه «${dev.deviceName}» رد شد."
+                                showSuccessSnackbar = true
+                            },
+                            onRefresh = { viewModel.refreshPairingRequests() },
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                    }
 
                     if (connectedDevices.isEmpty()) {
                         Text(

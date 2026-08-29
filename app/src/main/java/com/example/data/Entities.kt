@@ -425,3 +425,15 @@ data class SyncQueue(
     val status: String = "PENDING", // "PENDING", "PROCESSING", "FAILED", "CONFLICT", "COMPLETED"
     val retryCount: Int = 0
 )
+
+@Entity(tableName = "diagnostic_events")
+data class DiagnosticEvent(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val timestamp: Long = System.currentTimeMillis(),
+    val category: String, // e.g. "SYNC", "SUPABASE", "AUTH", "NETWORK", "DATABASE", "APP"
+    val level: String, // e.g. "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+    val summary: String,
+    val details: String = "",
+    val entityType: String = "",
+    val entityId: String = ""
+)

@@ -1,0 +1,604 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:compileDebugKotlin
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:57:13 Unresolved reference 'HamrahanViewModelFactory'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:61:49 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:62:23 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:96:29 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:96:32 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:96:42 Unresolved reference 'companyName'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:96:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:110:48 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:111:23 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:138:22 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:138:25 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:138:35 Unresolved reference 'activeDeviceStatus'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:138:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:139:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:139:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:139:37 Unresolved reference 'companyIsSetup'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:139:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:140:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:140:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:140:38 Unresolved reference 'hasBeenApproved'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:140:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:151:23 Unresolved reference 'runAlertDiagnostics'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:416:51 Unresolved reference 'resetDeviceJoinState'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:438:26 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:438:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:438:39 Unresolved reference 'connectedDevices'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:438:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:447:26 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:448:35 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:450:50 Unresolved reference 'companyId'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:450:80 Unresolved reference 'companyId'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:456:23 Unresolved reference 'pairingApprovalEvents'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:456:55 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:457:109 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:459:66 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:468:38 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:470:54 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:475:113 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:475:157 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:487:27 Unresolved reference 'approveDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:495:27 Unresolved reference 'rejectDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:522:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:522:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:522:37 Unresolved reference 'navigateToScreen'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:522:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:524:25 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:524:25 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:524:31 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:547:23 Unresolved reference 'clearNavigateToScreen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:60:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:60:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:60:38 Unresolved reference 'currentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:60:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:63:35 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:63:66 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:63:104 Unresolved reference 'tab'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:65:23 Unresolved reference 'clearDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:360:66 Unresolved reference 'updateFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:361:69 Unresolved reference 'updateFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:363:59 Unresolved reference 'deleteFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:393:66 Unresolved reference 'updateFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:394:69 Unresolved reference 'updateFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:395:68 Unresolved reference 'deleteFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:430:64 Unresolved reference 'deleteCashbox'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:450:27 Unresolved reference 'addFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:462:27 Unresolved reference 'saveCashbox'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1377:35 Unresolved reference 'rebuildFinancialLedger'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1377:67 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1388:35 Unresolved reference 'recalculateDashboardTotals'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1388:71 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1399:35 Unresolved reference 'recalculateCashboxBalances'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1399:71 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1410:35 Unresolved reference 'removeOrphanLedgerEntries'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1410:70 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1421:35 Unresolved reference 'repairBrokenReferences'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1421:67 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1432:35 Unresolved reference 'validateAndRepairFinancialIntegrity'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1432:80 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1443:35 Unresolved reference 'scanFinancialIntegrityIssues'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1443:73 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1454:35 Unresolved reference 'refreshFinancialIndexes'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1454:68 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1532:35 Unresolved reference 'clearLedger'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1532:49 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1534:39 Unresolved reference 'rebuildFinancialLedger'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1534:64 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1803:27 Unresolved reference 'issueAdjustmentEntry'.
+e: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1816:27 Unresolved reference 'issueReversingEntry'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:230:43 Unresolved reference 'settleCommission'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:315:43 Unresolved reference 'settleCommission'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1010:74 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1011:51 Unresolved reference 'exportDataToExcel'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1210:47 Unresolved reference 'deleteReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1210:69 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1211:123 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1348:43 Unresolved reference 'updateReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1381:47 Unresolved reference 'insertReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1431:39 Unresolved reference 'insertReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1494:39 Unresolved reference 'payReferralCommission'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:43:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:43:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:43:37 Unresolved reference 'companyIsSetup'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:43:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:53:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:53:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:53:38 Unresolved reference 'failedSyncCount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:53:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:54:26 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:54:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:54:39 Unresolved reference 'connectedDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:54:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:55:28 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:55:31 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:55:41 Unresolved reference 'livePendingDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:55:60 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:61:26 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:61:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:61:39 Unresolved reference 'companyJoinError'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:61:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:62:28 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:62:31 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:62:41 Unresolved reference 'companyJoinSuccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:62:60 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:72:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:72:27 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:72:31 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:75:23 Unresolved reference 'clearCompanyJoinStatus'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:80:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:80:29 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:80:33 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:83:23 Unresolved reference 'clearCompanyJoinStatus'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:88:19 Unresolved reference 'startPairingPolling'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:90:23 Unresolved reference 'stopPairingPolling'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:96:23 Unresolved reference 'refreshPairingRequests'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:102:57 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:106:60 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:108:63 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:112:9 Unresolved reference 'not' for operator '!'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:266:47 Unresolved reference 'createCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:422:47 Unresolved reference 'joinCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:444:51 Unresolved reference 'joinCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:491:43 Unresolved reference 'purgeAllLocalOfflineDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:507:43 Unresolved reference 'resetCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:688:65 'operator' modifier is required on 'FirNamedFunctionSymbol kotlin/compareTo' in 'compareTo'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:771:55 Unresolved reference 'updateActiveDeviceLabel'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:796:74 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:808:43 Unresolved reference 'approveDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:813:43 Unresolved reference 'rejectDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:817:53 Unresolved reference 'refreshPairingRequests'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:830:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:831:55 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:832:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:838:81 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:838:120 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:842:81 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:852:70 Unresolved reference 'deviceType'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:858:59 Unresolved reference 'deviceName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:878:132 Unresolved reference 'appVersion'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:893:83 Unresolved reference 'role'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:931:67 Unresolved reference 'changeDeviceRole'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:931:91 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:933:97 Unresolved reference 'deviceName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:963:59 Unresolved reference 'approveDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:963:86 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:964:92 Unresolved reference 'deviceName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:967:98 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:977:68 Unresolved reference 'deviceName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:979:93 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:988:59 Unresolved reference 'revokeDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:988:85 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:989:92 Unresolved reference 'deviceName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:992:97 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1000:59 Unresolved reference 'deleteConnectedDevice'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1000:88 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1004:97 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1083:43 Unresolved reference 'updateSettings'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1135:43 Unresolved reference 'purgeAllLocalOfflineDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1152:51 Unresolved reference 'resetCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1338:47 Unresolved reference 'renameDevice'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:101:21 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:101:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:101:34 Unresolved reference 'monthlyChartData'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:101:51 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:104:24 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:104:27 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:104:37 Unresolved reference 'resolvedAlerts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:104:52 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:107:26 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:107:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:107:39 Unresolved reference 'connectedDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:107:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:108:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:108:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:108:38 Unresolved reference 'livePendingDevices'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:108:57 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:114:67 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:123:97 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:123:146 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:130:106 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:156:71 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:156:76 'operator' modifier is required on 'FirNamedFunctionSymbol kotlin/compareTo' in 'compareTo'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:156:139 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:173:74 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:175:42 Argument type mismatch: actual type is 'Int', but 'ConnectedDevice' was expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:177:47 Unresolved reference 'approveDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:177:82 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:178:121 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:182:47 Unresolved reference 'rejectDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:182:81 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:183:121 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:192:118 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:204:19 Unresolved reference 'startPairingPolling'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:206:23 Unresolved reference 'stopPairingPolling'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:212:23 Unresolved reference 'refreshPairingRequests'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:217:19 Unresolved reference 'runAlertDiagnostics'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:220:36 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:221:95 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:223:35 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:224:98 Unresolved reference 'deviceId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:594:100 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:604:56 Unresolved reference 'approveDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:605:55 Unresolved reference 'rejectDeviceAccess'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:606:49 Unresolved reference 'refreshPairingRequests'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:855:62 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:901:55 Unresolved reference 'approveAllEligibleAlerts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:912:55 Unresolved reference 'dismissAllAlerts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:923:55 Unresolved reference 'markAllAlertsAsRead'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:952:58 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:953:37 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:955:63 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:964:66 Unresolved reference 'alert'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:975:62 Unresolved reference 'alert'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:982:76 Unresolved reference 'actionPerformed'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:983:75 Unresolved reference 'resolvedBy'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1035:66 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1036:66 Unresolved reference 'markAlertAsRead'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1037:65 Unresolved reference 'dismissAlert'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1694:66 Unresolved reference 'dismissAllAlerts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1745:75 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1756:75 Unresolved reference 'markAlertAsRead'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1767:75 Unresolved reference 'dismissAlert'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1808:35 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1826:35 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2256:43 Unresolved reference 'editServiceRegistration'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2272:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2287:43 Unresolved reference 'saveExpense'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2297:43 Unresolved reference 'updateFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2440:65 Unresolved reference 'deleteRegistration'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2441:53 Unresolved reference 'deleteExpense'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2442:66 Unresolved reference 'deleteFinancialTransaction'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2589:58 Unresolved reference 'clearAllAlerts'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2604:47 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2606:58 Unresolved reference 'markAlertAsRead'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2607:57 Unresolved reference 'dismissAlert'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3193:47 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3204:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3215:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3225:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3244:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3254:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3274:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3284:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3295:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3305:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3315:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3325:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3336:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3346:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3356:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3366:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3377:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3389:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3399:55 Unresolved reference 'resolveAlertInline'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:33:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:33:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:33:38 Unresolved reference 'currentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:33:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:43:34 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:43:64 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:44:54 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:176:28 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:176:31 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:176:41 Unresolved reference 'personnelTypes'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:176:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:181:27 Unresolved reference 'addPersonnelType'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:185:27 Unresolved reference 'saveEmployee'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:189:27 Unresolved reference 'deleteEmployee'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:205:27 Unresolved reference 'clearCurrentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:628:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:628:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:628:38 Unresolved reference 'currentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:628:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:632:34 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:632:64 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:633:24 Unresolved reference 'tab'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:796:75 Unresolved reference 'alertType'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:814:75 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:837:75 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:860:75 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:883:75 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:949:67 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:958:67 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:967:67 Unresolved reference 'saveStaffProfile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:998:55 Unresolved reference 'saveContract'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:1008:55 Unresolved reference 'saveContract'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:1042:76 Unresolved reference 'alertType'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:1042:128 Unresolved reference 'alertType'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:1064:67 Unresolved reference 'saveContract'.
+e: file:///app/applet/app/src/main/java/com/example/ui/EmployeeScreen.kt:1073:67 Unresolved reference 'saveContract'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:158:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:159:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:160:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:161:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:162:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:163:43 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:213:43 Unresolved reference 'saveFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:222:43 Unresolved reference 'saveFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:231:43 Unresolved reference 'saveFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:919:52 Unresolved reference 'deleteExpense'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:948:27 Unresolved reference 'saveExpense'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:1426:43 Unresolved reference 'checkAndGenerateFixedExpensesForCurrentMonth'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:1470:68 Unresolved reference 'saveFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:1471:52 Unresolved reference 'deleteFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:1498:27 Unresolved reference 'saveFixedExpenseTemplate'.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:425:13 'return' is prohibited here.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:477:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:488:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:499:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:502:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:549:5 Conflicting overloads:
+fun checkForUpdates(context: Context): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:587:5 Conflicting overloads:
+fun getBackupFilesList(): List<File>
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:600:5 Conflicting overloads:
+fun deleteBackupFile(file: File): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:625:9 Conflicting declarations:
+local val companyName: MutableStateFlow<String>
+local val companyName: StateFlow<String>
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:642:5 Conflicting overloads:
+fun saveService(service: Service): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:648:5 Conflicting overloads:
+fun deleteService(service: Service): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1657:5 Conflicting overloads:
+fun saveService(service: Service): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1658:5 Conflicting overloads:
+fun deleteService(service: Service): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1659:5 Conflicting overloads:
+fun checkForUpdates(context: Context): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1660:5 Conflicting overloads:
+fun getBackupFilesList(): List<File>
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1665:5 Conflicting overloads:
+fun deleteBackupFile(file: File): Unit
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1671:9 Conflicting declarations:
+local val companyName: MutableStateFlow<String>
+local val companyName: StateFlow<String>
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1680:1 Missing return statement.
+e: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:1722:2 Syntax error: Missing '}.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:41:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:41:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:41:38 Unresolved reference 'currentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:41:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:53:34 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:54:22 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:55:57 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:59:29 Unresolved reference 'tab'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:62:27 Unresolved reference 'clearCurrentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:220:43 Unresolved reference 'clearCurrentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:331:35 Unresolved reference 'clearCurrentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:344:27 Unresolved reference 'savePatient'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:348:27 Unresolved reference 'deletePatient'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:547:39 Unresolved reference 'insertReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:555:48 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:641:47 Unresolved reference 'insertReferral'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:649:56 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1051:43 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1064:43 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1169:25 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1169:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1169:38 Unresolved reference 'currentDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1169:54 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1173:34 Unresolved reference 'screen'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1173:63 Unresolved reference 'entityId'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1174:24 Unresolved reference 'tab'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1348:56 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1402:66 Unresolved reference 'deleteVitalSigns'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1440:70 Unresolved reference 'deleteWoundRecord'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1493:70 Unresolved reference 'deleteConsentForm'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1532:70 Unresolved reference 'deletePrescription'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1563:70 Unresolved reference 'deleteServiceSchedule'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1580:67 Unresolved reference 'saveServiceSchedule'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1589:67 Unresolved reference 'saveServiceSchedule'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1599:67 Unresolved reference 'saveServiceSchedule'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1632:70 Unresolved reference 'deleteNursingReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1648:63 Unresolved reference 'saveNursingReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1656:63 Unresolved reference 'saveNursingReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1664:63 Unresolved reference 'saveNursingReport'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1750:35 Unresolved reference 'saveVitalSigns'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1789:35 Unresolved reference 'saveWoundRecord'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1829:35 Unresolved reference 'saveConsentForm'.
+e: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1864:35 Unresolved reference 'savePrescription'.
+e: file:///app/applet/app/src/main/java/com/example/ui/RegistrationScreen.kt:95:52 Unresolved reference 'deleteRegistration'.
+e: file:///app/applet/app/src/main/java/com/example/ui/RegistrationScreen.kt:118:31 Unresolved reference 'editServiceRegistration'.
+e: file:///app/applet/app/src/main/java/com/example/ui/RegistrationScreen.kt:141:35 Unresolved reference 'registerPackage'.
+e: file:///app/applet/app/src/main/java/com/example/ui/RegistrationScreen.kt:159:35 Unresolved reference 'registerService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:181:51 Unresolved reference 'exportDataToExcel'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:209:49 Unresolved reference 'backupDatabaseFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:210:60 Unresolved reference 'exists'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:211:50 Unresolved reference 'exportBackupToUri'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:245:48 Unresolved reference 'validateBackupFromUri'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:720:65 Unresolved reference 'restoreDatabaseFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:30:21 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:30:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:30:34 Unresolved reference 'searchQuery'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:30:46 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:31:17 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:31:20 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:31:30 Unresolved reference 'globalSearchResults'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:31:50 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:52:41 Unresolved reference 'updateSearchQuery'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:52:59 Unresolved reference 'it'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:53:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:54:29 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:54:104 @Composable invocations can only happen from the context of a @Composable function
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:74:28 Unresolved reference 'patients'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:74:58 Unresolved reference 'employees'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:74:89 Unresolved reference 'services'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:74:119 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:87:29 Unresolved reference 'patients'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:90:63 Unresolved reference 'patients'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:96:35 Unresolved reference 'patients'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:98:39 Unresolved reference 'fullName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:99:51 Unresolved reference 'phone'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:99:71 Unresolved reference 'address'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:104:51 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:104:83 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:110:29 Unresolved reference 'employees'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:114:70 Unresolved reference 'employees'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:120:35 Unresolved reference 'employees'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:122:41 Unresolved reference 'fullName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:123:53 Unresolved reference 'profession'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:123:86 Unresolved reference 'phone'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:128:51 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:128:86 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:134:29 Unresolved reference 'services'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:138:60 Unresolved reference 'services'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:144:35 Unresolved reference 'services'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:146:39 Unresolved reference 'name'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:147:51 Unresolved reference 'category'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:147:74 Unresolved reference 'sellingPrice'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:152:51 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:152:83 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:158:29 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:162:64 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:168:35 Unresolved reference 'transactions'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:170:40 Unresolved reference 'description'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:171:46 Unresolved reference 'type'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:171:65 Unresolved reference 'amount'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:171:109 Unresolved reference 'date'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:176:51 Unresolved reference 'handleDeepLink'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SearchScreen.kt:176:86 Unresolved reference 'id'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:61:31 Unresolved reference 'importTariffs'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:112:47 Unresolved reference 'resetAllServicesToOfficialTariffs'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:306:27 Unresolved reference 'saveService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:314:27 Unresolved reference 'saveService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:333:35 Unresolved reference 'deleteService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:355:27 Unresolved reference 'saveService'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:64:19 Unresolved reference 'checkForUpdates'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:67:21 Property delegate must have a 'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot infer argument for type parameter T>)' method. None of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: KProperty<*>): T
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:67:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:67:34 Unresolved reference 'companyName'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:67:46 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:24 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:24 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:35 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:107:35 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:28 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:28 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:28 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:39 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:39 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:126:64 Unresolved reference 'getBackupFilesList'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:151:45 Unresolved reference 'exportBackupToUri'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:179:44 Unresolved reference 'validateBackupFromUri'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:212:40 Unresolved reference 'validateBackupFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:574:62 Function invocation 'size(...)' expected.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:595:60 Unresolved reference 'backupDatabaseFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:597:123 Unresolved reference 'name'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:598:69 Unresolved reference 'getBackupFilesList'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:655:42 Method 'iterator()' is ambiguous for this expression. Applicable candidates:
+fun <T> Enumeration<T>.iterator(): Iterator<T>
+fun <T> Iterator<T>.iterator(): Iterator<T>
+fun <K, V> Map<out K, V>.iterator(): Iterator<Map.Entry<K, V>>
+fun <K, V> MutableMap<K, V>.iterator(): MutableIterator<MutableMap.MutableEntry<K, V>>
+fun CharSequence.iterator(): CharIterator
+fun BufferedInputStream.iterator(): ByteIterator
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:691:63 Unresolved reference 'deleteBackupFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:692:81 Unresolved reference 'getBackupFilesList'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:1036:35 Unresolved reference 'resetCompanyWorkspace'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:1115:53 Unresolved reference 'restoreData'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:1117:81 Unresolved reference 'show'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:1206:57 Unresolved reference 'restoreDatabaseFile'.
+e: file:///app/applet/app/src/main/java/com/example/ui/SettingsScreen.kt:1210:69 Unresolved reference 'getBackupFilesList'.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:27:40 Unresolved reference 'exportDatabaseToJson'.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:28:24 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:28:36 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:29:104 Unresolved reference 'name'.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:30:19 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///app/applet/app/src/main/java/com/example/ui/components/ExportBackupButton.kt:30:19 Not enough information to infer type argument for 'T'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperAuthScreen.kt:42:23 Unresolved reference 'notifyDevAuthScreenOpened'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:40:27 Unresolved reference 'notifyDevSessionExpired'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:275:60 Unresolved reference 'updateCurrentUserRole'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:281:59 Unresolved reference 'updateCurrentUserRole'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:315:59 Unresolved reference 'toggleDarkMode'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:501:51 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:539:67 Unresolved reference 'saveExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:562:75 Unresolved reference 'deleteExpenseCategory'.
+e: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:640:51 Unresolved reference 'mergeExpenseCategories'.
+
+> Task :app:compileDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 46s
+33 actionable tasks: 1 executed, 32 up-to-date
+Configuration cache entry reused.

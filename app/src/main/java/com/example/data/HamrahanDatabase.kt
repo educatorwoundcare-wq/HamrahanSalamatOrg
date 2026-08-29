@@ -38,9 +38,10 @@ import androidx.room.RoomDatabase
         ConsentForm::class,
         Prescription::class,
         DashboardCache::class,
-        SyncQueue::class
+        SyncQueue::class,
+        DiagnosticEvent::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = false,
     autoMigrations = []
 )

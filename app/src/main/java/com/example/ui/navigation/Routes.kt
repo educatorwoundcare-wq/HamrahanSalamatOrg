@@ -36,6 +36,12 @@ data object Search
 data object Settings
 
 @Serializable
+data object DeveloperControlCenter
+
+@Serializable
+data object DeveloperAuth
+
+@Serializable
 data object CompanyProfile
 
 @Serializable
