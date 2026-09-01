@@ -134,7 +134,7 @@ class SyncEngine @JvmOverloads constructor(
                 kotlinx.coroutines.delay(currentRetryDelay)
                 if (_isOnline.value && !_syncing.value && isActive) {
                     val wm = WorkspaceManager.getInstance(context)
-                    val companyId = wm.currentTenantId ?: dao.getSystemSettingByKey("company_id")
+                    val companyId = wm.currentTenantId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
                     if (!companyId.isNullOrEmpty()) {
                         try {
                             sync()
@@ -231,11 +231,11 @@ class SyncEngine @JvmOverloads constructor(
         try {
             _syncing.value = true
             val wm = WorkspaceManager.getInstance(context)
-            val companyId = wm.currentTenantId ?: dao.getSystemSettingByKey("company_id")
+            val companyId = wm.currentTenantId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
             syncCompanyId = companyId
             val initialAuthUid = wm.currentAuthUid ?: wm.extractSubFromJwt(wm.currentAuthToken)
             syncAuthUid = initialAuthUid
-            val syncCode = wm.currentSyncCode ?: dao.getSystemSettingByKey("company_sync_code")
+            val syncCode = wm.currentSyncCode?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_sync_code")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_sync_code")
             Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$initialAuthUid localCompanyId=$companyId localSyncCode=$syncCode remoteCreatorUid=N/A decision=SYNC_ENGINE_STARTUP")
             if (companyId.isNullOrEmpty()) {
                 Log.w("SyncEngine", "[Sync Cycle] Sync aborted because company_id is missing. Workspace not configured.")
@@ -278,7 +278,27 @@ class SyncEngine @JvmOverloads constructor(
             val confirmedWorkspace = bootstrapResult.workspace
             val confirmedAuthUid = bootstrapResult.authUid
             val activeDeviceRole = confirmedDevice.role
-            val activeDeviceStatus = confirmedDevice.status
+                        val activeDeviceStatus = confirmedDevice.status
+
+            // Promote pending target to active workspace if applicable
+            val pendingCompId = dao.getSystemSettingByKey("pending_company_id")
+            if (!pendingCompId.isNullOrBlank() && pendingCompId == confirmedWorkspace.companyId && activeDeviceStatus == "Active") {
+                dao.insertSystemSetting(SystemSetting("company_id", confirmedWorkspace.companyId))
+                dao.insertSystemSetting(SystemSetting("company_sync_code", confirmedWorkspace.companySyncCode))
+                val pName = dao.getSystemSettingByKey("pending_company_name") ?: confirmedWorkspace.centerName
+                dao.insertSystemSetting(SystemSetting("company_name", pName))
+                dao.insertSystemSetting(SystemSetting("center_name", pName))
+                
+                dao.insertSystemSetting(SystemSetting("pending_company_id", ""))
+                dao.insertSystemSetting(SystemSetting("pending_sync_code", ""))
+                dao.insertSystemSetting(SystemSetting("pending_company_name", ""))
+                
+                wm.saveIdentity(confirmedWorkspace.companyId, confirmedWorkspace.companySyncCode, wm.currentAuthToken ?: "", confirmedAuthUid)
+                
+                // Reindex local workspace
+                (context.applicationContext as? com.example.HamrahanApplication)?.container?.repository?.reindexWorkspaceData(confirmedWorkspace.companyId)
+            }
+
 
             // Sync and persist authoritative role and status locally
             dao.insertSystemSetting(SystemSetting("active_device_role", activeDeviceRole))

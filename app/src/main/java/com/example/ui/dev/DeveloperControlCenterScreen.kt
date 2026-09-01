@@ -86,6 +86,9 @@ val isDeveloperMode by viewModel.isDeveloperMode.collectAsState()
     val syncSummary by viewModel.syncSummary.collectAsState()
     val isOnline by viewModel.isOnline.collectAsState()
     val diagnosticEvents by viewModel.diagnosticEvents.collectAsState()
+    val pendingRequests by viewModel.livePendingDevices.collectAsState()
+    val isMasterDevice by viewModel.isMasterDevice.collectAsState()
+
     var showLegacyTools by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -224,6 +227,42 @@ val isDeveloperMode by viewModel.isDeveloperMode.collectAsState()
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("🔄 اجرای اجباری همگام‌سازی (Force Sync)")
+            }
+
+
+            // --- PAIRING DEBUG & CONTROL ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("مدیریت اتصال دستگاه‌ها (Pairing Debug)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0B2))) {
+                        Text("PAIRING DEBUG | Master: ${isMasterDevice} | Pending: ${pendingRequests.size}", modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                    }
+
+                    if (isMasterDevice && pendingRequests.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        com.example.ui.components.PairingRequestsSection(
+                            pendingDevices = pendingRequests,
+                            onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
+                            onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
+                            onRefresh = { viewModel.refreshPairingRequests() },
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("No pending requests or not Master.", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.weight(1f))
+                            IconButton(onClick = { viewModel.refreshPairingRequests() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

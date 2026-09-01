@@ -1296,6 +1296,33 @@ class HamrahanViewModel @JvmOverloads constructor(
         }
     }
 
+
+    fun cancelPairingRequest() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val devId = repository.dao.getSystemSettingByKey("active_device_id") ?: return@launch
+                val compId = repository.dao.getSystemSettingByKey("pending_company_id") ?: repository.dao.getSystemSettingByKey("company_id") ?: return@launch
+                
+                // Cancel on cloud
+                repository.cloudClient.patchDeviceAuthorization(compId, devId, "Cancelled", "Staff")
+                
+                // Clear local pending settings
+                repository.dao.insertSystemSetting(SystemSetting("active_device_status", "Unpaired"))
+                repository.dao.insertSystemSetting(SystemSetting("company_id", ""))
+                repository.dao.insertSystemSetting(SystemSetting("company_sync_code", ""))
+                repository.dao.insertSystemSetting(SystemSetting("pending_company_id", ""))
+                repository.dao.insertSystemSetting(SystemSetting("pending_sync_code", ""))
+                repository.dao.insertSystemSetting(SystemSetting("pending_company_name", ""))
+                
+                com.example.data.WorkspaceManager.getInstance(repository.context).clearWorkspaceTenantOnly()
+                
+                triggerSync()
+            } catch (e: Exception) {
+                Log.e("HamrahanViewModel", "Error cancelling pairing request", e)
+            }
+        }
+    }
+
     fun joinCompanyWorkspace(code: String, phone: String) {
         viewModelScope.launch {
             try {
@@ -1472,6 +1499,12 @@ class HamrahanViewModel @JvmOverloads constructor(
             repository.insertSystemSetting(SystemSetting("device_has_been_approved", "false"))
             repository.insertSystemSetting(SystemSetting("company_id", ""))
             repository.insertSystemSetting(SystemSetting("company_sync_code", ""))
+            repository.insertSystemSetting(SystemSetting("pending_company_id", ""))
+            repository.insertSystemSetting(SystemSetting("pending_sync_code", ""))
+            repository.insertSystemSetting(SystemSetting("pending_company_name", ""))
+            
+            val workspaceManager = com.example.data.WorkspaceManager.getInstance(repository.context)
+            com.example.data.WorkspaceManager.getInstance(repository.context).clearWorkspaceTenantOnly()
         }
     }
 

@@ -1,9 +1,10 @@
 import re
 
-with open("app/src/main/java/com/example/data/SyncEngine.kt", "r") as f:
-    content = f.read()
+with open('app/src/main/java/com/example/data/SyncEngine.kt', 'r') as f:
+    text = f.read()
 
-# I will find the phrase "// --- 1. REGISTRATION SYNC PIPELINE ---" 
-# and delete the "Startup Self-Healing Logic" block
-# and any logic that registers the workspace if it's missing in SyncEngine.
+text = text.replace('confirmedWorkspace.syncCode', 'confirmedWorkspace.companySyncCode')
+text = text.replace('context.applicationContext as? com.example.HamrahanApplication', 'context.applicationContext as? com.example.HamrahanApplication')
 
+with open('app/src/main/java/com/example/data/SyncEngine.kt', 'w') as f:
+    f.write(text)

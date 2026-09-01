@@ -41,7 +41,7 @@ import androidx.room.RoomDatabase
         SyncQueue::class,
         DiagnosticEvent::class
     ],
-    version = 23,
+    version = 24,
     exportSchema = false,
     autoMigrations = []
 )
@@ -167,6 +167,13 @@ abstract class HamrahanDatabase : RoomDatabase() {
             }
         }
         
+        
+        val MIGRATION_22_23 = object : androidx.room.migration.Migration(22, 23) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Empty migration, assuming no schema changes, or handled elsewhere.
+            }
+        }
+
         val MIGRATION_21_22 = object : androidx.room.migration.Migration(21, 22) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("UPDATE system_settings SET value = 'COMP-A4458D65' WHERE key = 'company_id' AND value = 'COMP-5938C8A0'")
@@ -201,6 +208,7 @@ abstract class HamrahanDatabase : RoomDatabase() {
                 )
                     .addMigrations(*ALL_MIGRATIONS.toTypedArray())
                     .addMigrations(MIGRATION_20_21, MIGRATION_21_22)
+                    .fallbackToDestructiveMigration()
                     .addCallback(CDCCallback)
                     .build()
                 INSTANCE = instance

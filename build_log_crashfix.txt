@@ -1,0 +1,104 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Reusing configuration cache.
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:injectCrashlyticsMappingFileIdDebug UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:generateDebugRFile UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+w: file:///app/applet/app/src/main/java/com/example/MainActivity.kt:123:47 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/data/CloudClient.kt:224:43 Condition is always 'false'.
+w: file:///app/applet/app/src/main/java/com/example/data/FCMService.kt:33:18 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///app/applet/app/src/main/java/com/example/data/FCMService.kt:34:15 'fun onNewToken(p0: String): Unit' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/example/data/HamrahanDatabase.kt:211:22 'fun fallbackToDestructiveMigration(): RoomDatabase.Builder<HamrahanDatabase>' is deprecated. Replace by overloaded version with parameter to indicate if all tables should be dropped or not.
+w: file:///app/applet/app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt:39:81 Unchecked cast of 'Map<*, *>?' to 'Map<String, Any>'.
+w: file:///app/applet/app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt:42:56 Unchecked cast of 'Any?' to 'Map<String, Any>'.
+w: file:///app/applet/app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt:88:81 Unchecked cast of 'Map<*, *>?' to 'Map<String, Any>'.
+w: file:///app/applet/app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt:91:56 Unchecked cast of 'Any?' to 'Map<String, Any>'.
+w: file:///app/applet/app/src/main/java/com/example/data/supabase/SupabaseAuthRepository.kt:125:69 Unchecked cast of 'Map<*, *>?' to 'Map<String, Any>'.
+w: file:///app/applet/app/src/main/java/com/example/domain/usecase/SettleEmployeeCommissionUseCase.kt:87:47 'constructor(p0: String!): Locale' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:179:42 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:188:42 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:224:49 'val Icons.Filled.MenuBook: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.MenuBook.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:230:49 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:282:56 'val Icons.Filled.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Sort.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:327:66 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:380:58 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:589:42 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/AccountingScreen.kt:1772:38 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:418:60 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/CommissionScreen.kt:1137:60 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/CompanyProfileScreen.kt:1160:48 'val Icons.Filled.ExitToApp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ExitToApp.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1132:54 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1148:54 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1188:50 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1204:50 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:1390:42 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2901:113 'val Icons.Filled.Assignment: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Assignment.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:2904:113 'val Icons.Filled.FactCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FactCheck.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3068:29 'fun LinearProgressIndicator(progress: Float, modifier: Modifier = ..., color: Color = ..., trackColor: Color = ..., strokeCap: StrokeCap = ...): Unit' is deprecated. Use the overload that takes `progress` as a lambda.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3195:52 'val Icons.Filled.FactCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FactCheck.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3295:52 'val Icons.Filled.FactCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FactCheck.
+w: file:///app/applet/app/src/main/java/com/example/ui/DashboardScreen.kt:3369:52 'val Icons.Filled.Send: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Send.
+w: file:///app/applet/app/src/main/java/com/example/ui/ExpensesScreen.kt:504:38 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/HamrahanViewModel.kt:565:120 'field versionCode: Int' is deprecated. Deprecated in Java.
+w: file:///app/applet/app/src/main/java/com/example/ui/LifecycleHelper.kt:14:26 'val LocalLifecycleOwner: ProvidableCompositionLocal<LifecycleOwner>' is deprecated. Moved to lifecycle-runtime-compose library in androidx.lifecycle.compose package.
+w: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1123:42 'val Icons.Filled.FactCheck: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.FactCheck.
+w: file:///app/applet/app/src/main/java/com/example/ui/PatientScreen.kt:1266:42 'val Icons.Filled.ReceiptLong: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ReceiptLong.
+w: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:370:54 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/ReportScreen.kt:384:54 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:203:44 'val Icons.Filled.Sort: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.Sort.
+w: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:543:17 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:601:17 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///app/applet/app/src/main/java/com/example/ui/ServiceScreen.kt:736:21 'fun Divider(modifier: Modifier = ..., thickness: Dp = ..., color: Color = ...): Unit' is deprecated. Renamed to HorizontalDivider.
+w: file:///app/applet/app/src/main/java/com/example/ui/SyncDashboardScreen.kt:56:48 'val Icons.Filled.ArrowForward: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowForward.
+w: file:///app/applet/app/src/main/java/com/example/ui/components/EnterpriseComponents.kt:195:80 'val Icons.Filled.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingUp.
+w: file:///app/applet/app/src/main/java/com/example/ui/components/EnterpriseComponents.kt:195:110 'val Icons.Filled.TrendingDown: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.TrendingDown.
+w: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperAuthScreen.kt:71:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:100:44 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///app/applet/app/src/main/java/com/example/ui/dev/DeveloperControlCenterScreen.kt:837:48 'val Icons.Filled.List: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.List.
+
+> Task :app:processDebugJavaRes UP-TO-DATE
+> Task :app:mergeDebugJavaResource UP-TO-DATE
+> Task :app:compileDebugJavaWithJavac UP-TO-DATE
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:packageDebug
+> Task :app:assembleDebug
+> Task :app:createDebugApkListingFileRedirect UP-TO-DATE
+
+BUILD SUCCESSFUL in 1m 59s
+40 actionable tasks: 5 executed, 35 up-to-date
+Configuration cache entry reused.

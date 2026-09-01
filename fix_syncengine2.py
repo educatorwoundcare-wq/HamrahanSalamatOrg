@@ -1,10 +1,9 @@
 import re
 
-with open("app/src/main/java/com/example/data/SyncEngine.kt", "r") as f:
-    content = f.read()
+with open('app/src/main/java/com/example/data/SyncEngine.kt', 'r') as f:
+    text = f.read()
 
-pattern = re.compile(r'            // Startup Self-Healing Logic: Verify Remote Consistency of Workspace Info Node.*?            // 2\. Upload pending local changes to the Real Cloud Database', re.DOTALL)
-new_content = pattern.sub('            // 2. Upload pending local changes to the Real Cloud Database', content)
+text = text.replace('(context.applicationContext as? com.example.HamrahanApplication)?.repository', '(context.applicationContext as? com.example.HamrahanApplication)?.container?.repository')
 
-with open("app/src/main/java/com/example/data/SyncEngine.kt", "w") as f:
-    f.write(new_content)
+with open('app/src/main/java/com/example/data/SyncEngine.kt', 'w') as f:
+    f.write(text)

@@ -119,85 +119,7 @@ fun DashboardScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(pendingRequests, isMasterDevice) {
-        android.util.Log.d("PAIRING_DEBUG", "PAIRING_DEBUG_MASTER_DEVICE=$isMasterDevice")
-        android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${pendingRequests.size}\npendingDeviceIds=[${pendingRequests.map { it.deviceId }.joinToString(",")}]\nisMasterDevice=$isMasterDevice")
-    }
-
-    if (shouldShowDialog) {
-        android.util.Log.d("PAIRING_DEBUG", "PAIRING_DEBUG_SHOWING_APPROVAL_DIALOG")
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = {
-                dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevicesForDialog.map { it.deviceId }.toSet()
-            },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.NotificationsActive,
-                            contentDescription = null,
-                            tint = Color(0xFFF59E0B),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = if (visiblePendingDevicesForDialog.size > 1) "درخواست‌های اتصال جدید: ${visiblePendingDevicesForDialog.size}" else "🔔 درخواست اتصال دستگاه جدید",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
-                        )
-                    }
-                    
-                    Text(
-                        text = "دستگاه‌های زیر درخواست اتصال به این دفتر را ارسال کرده‌اند:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(visiblePendingDevicesForDialog, key = { it.deviceId }) { dev ->
-                            com.example.ui.components.PairingRequestCard(
-                                device = dev,
-                                onApprove = { 
-                                    viewModel.approveDeviceAccess(it.deviceId) { error ->
-                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
-                                    }
-                                },
-                                onReject = { 
-                                    viewModel.rejectDeviceAccess(it.deviceId) { error ->
-                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    
-                    TextButton(
-                        onClick = {
-                            dismissedPendingDevices = dismissedPendingDevices + visiblePendingDevicesForDialog.map { it.deviceId }.toSet()
-                        },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text("بستن (تأیید بعداً)")
-                    }
-                }
-            }
-        }
+android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${pendingRequests.size}\npendingDeviceIds=[${pendingRequests.map { it.deviceId }.joinToString(",")}]\nisMasterDevice=$isMasterDevice")
     }
 
     DisposableEffect(Unit) {
@@ -218,11 +140,9 @@ fun DashboardScreen(
     }
 
     LaunchedEffect(pendingRequests.size, activeAlerts.size) {
-        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] pendingDevices count=${pendingRequests.size}")
-        android.util.Log.d("PAIRING_UI", "[PAIRING_UI] activeAlerts count=${activeAlerts.size}")
-        pendingRequests.forEach { dev ->
-            android.util.Log.d("PAIRING_UI", "[PAIRING_UI] Pending device visible deviceId=${dev.deviceId}")
-        }
+
+pendingRequests.forEach { dev ->
+}
     }
 
     // --- State Variables for Interactive Drill Down & Transparency Mode ---
@@ -587,28 +507,7 @@ fun DashboardScreen(
                 .testTag("dashboard_screen"),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- Forensic Temporary Marker ---
-            item {
-                if (androidx.compose.ui.platform.LocalInspectionMode.current || true) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFE0B2))) {
-                        Text("PAIRING DEBUG | Master: $isMasterDevice | Pending: ${pendingRequests.size}", modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.labelSmall, color = Color.Black)
-                    }
-                }
-            }
             
-            // --- Primary Rendering of Pending Requests ---
-            if (isMasterDevice) {
-                item {
-                    com.example.ui.components.PairingRequestsSection(
-                        pendingDevices = pendingRequests,
-                        onApprove = { dev -> viewModel.approveDeviceAccess(dev.deviceId) },
-                        onReject = { dev -> viewModel.rejectDeviceAccess(dev.deviceId) },
-                        onRefresh = { viewModel.refreshPairingRequests() },
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-            }
-
             // --- Header Banner ---
             item {
                 com.example.ui.components.EnterpriseCard(
