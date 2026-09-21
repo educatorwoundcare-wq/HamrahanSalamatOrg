@@ -106,4 +106,138 @@ class PairingIdentitySecurityTest {
         dao.insertConnectedDevice(approvedDevice)
         assertEquals("Active", dao.getConnectedDeviceById(deviceId)?.status)
     }
+
+    @Test
+    fun testWorkspaceResolutionAndDeviceStatusMatrix() = runBlocking {
+        val foreignWorkspace = WorkspaceInfo(
+            companyId = "COMP-CENTER-01",
+            companySyncCode = "HAMRAHAN-C01",
+            centerName = "مرکز نمونه",
+            creatorUid = "creator-mother-uid"
+        )
+        val ownedWorkspace = WorkspaceInfo(
+            companyId = "COMP-CENTER-01",
+            companySyncCode = "HAMRAHAN-C01",
+            centerName = "مرکز نمونه",
+            creatorUid = "my-auth-uid"
+        )
+
+        // 1. ExistsForeign + Active Device -> Sync Allowed
+        val resForeignActive = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsForeign(foreignWorkspace, foreignWorkspace.creatorUid),
+            devRes = DeviceResolution.ExistsActive(
+                ConnectedDevice(
+                    deviceId = "DEV-STAFF-1",
+                    deviceName = "Staff Phone",
+                    deviceType = "Phone",
+                    appVersion = "1.0",
+                    lastOnlineTime = 1L,
+                    lastSuccessfulSync = 1L,
+                    status = "Active",
+                    uid = "my-auth-uid",
+                    role = "Staff",
+                    lastSeen = 1L,
+                    companyId = "COMP-CENTER-01"
+                )
+            )
+        )
+        assertTrue("ExistsForeign + Active device must allow sync", resForeignActive)
+
+        // 2. ExistsForeign + Pending Device -> Sync Blocked
+        val resForeignPending = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsForeign(foreignWorkspace, foreignWorkspace.creatorUid),
+            devRes = DeviceResolution.ExistsPending(
+                ConnectedDevice(
+                    deviceId = "DEV-STAFF-1",
+                    deviceName = "Staff Phone",
+                    deviceType = "Phone",
+                    appVersion = "1.0",
+                    lastOnlineTime = 1L,
+                    lastSuccessfulSync = 0L,
+                    status = "Pending",
+                    uid = "my-auth-uid",
+                    role = "Staff",
+                    lastSeen = 1L,
+                    companyId = "COMP-CENTER-01"
+                )
+            )
+        )
+        assertFalse("ExistsForeign + Pending device must NOT allow sync", resForeignPending)
+
+        // 3. ExistsForeign + Rejected (ExistsOther) -> Sync Blocked
+        val resForeignRejected = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsForeign(foreignWorkspace, foreignWorkspace.creatorUid),
+            devRes = DeviceResolution.ExistsOther(
+                ConnectedDevice(
+                    deviceId = "DEV-STAFF-1",
+                    deviceName = "Staff Phone",
+                    deviceType = "Phone",
+                    appVersion = "1.0",
+                    lastOnlineTime = 1L,
+                    lastSuccessfulSync = 0L,
+                    status = "Rejected",
+                    uid = "my-auth-uid",
+                    role = "Staff",
+                    lastSeen = 1L,
+                    companyId = "COMP-CENTER-01"
+                )
+            )
+        )
+        assertFalse("ExistsForeign + Rejected device must NOT allow sync", resForeignRejected)
+
+        // 4. ExistsForeign + Unknown/NotFound Device -> Sync Blocked
+        val resForeignNotFound = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsForeign(foreignWorkspace, foreignWorkspace.creatorUid),
+            devRes = DeviceResolution.NotFound
+        )
+        assertFalse("ExistsForeign + NotFound device must NOT allow sync", resForeignNotFound)
+
+        // 5. ExistsAndOwned + Active -> Sync Allowed
+        val resOwnedActive = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsAndOwned(ownedWorkspace),
+            devRes = DeviceResolution.ExistsActive(
+                ConnectedDevice(
+                    deviceId = "DEV-MOTHER-1",
+                    deviceName = "Mother Phone",
+                    deviceType = "Phone",
+                    appVersion = "1.0",
+                    lastOnlineTime = 1L,
+                    lastSuccessfulSync = 1L,
+                    status = "Active",
+                    uid = "my-auth-uid",
+                    role = "Mother Account",
+                    lastSeen = 1L,
+                    companyId = "COMP-CENTER-01"
+                )
+            )
+        )
+        assertTrue("ExistsAndOwned + Active device must allow sync", resOwnedActive)
+
+        // 6. ExistsAndOwned + Pending -> Sync Blocked
+        val resOwnedPending = evaluateSyncPermission(
+            wsRes = WorkspaceResolution.ExistsAndOwned(ownedWorkspace),
+            devRes = DeviceResolution.ExistsPending(
+                ConnectedDevice(
+                    deviceId = "DEV-MOTHER-1",
+                    deviceName = "Mother Phone",
+                    deviceType = "Phone",
+                    appVersion = "1.0",
+                    lastOnlineTime = 1L,
+                    lastSuccessfulSync = 0L,
+                    status = "Pending",
+                    uid = "my-auth-uid",
+                    role = "Mother Account",
+                    lastSeen = 1L,
+                    companyId = "COMP-CENTER-01"
+                )
+            )
+        )
+        assertFalse("ExistsAndOwned + Pending device must NOT allow sync", resOwnedPending)
+    }
+
+    private fun evaluateSyncPermission(wsRes: WorkspaceResolution, devRes: DeviceResolution): Boolean {
+        val workspaceConfirmed = wsRes is WorkspaceResolution.ExistsAndOwned || wsRes is WorkspaceResolution.ExistsForeign
+        val deviceConfirmed = devRes is DeviceResolution.ExistsActive
+        return workspaceConfirmed && deviceConfirmed
+    }
 }

@@ -437,77 +437,10 @@ fun HamrahanAppContent(
     val lastSyncTime by viewModel.lastSyncTime.collectAsState()
     val connectedDevices by viewModel.connectedDevices.collectAsState()
     val activeCompanyId by viewModel.companyId.collectAsState()
+    val activeDeviceId by viewModel.activeDeviceId.collectAsState()
 
-    var dismissedDeviceIds by remember { mutableStateOf(setOf<String>()) }
-    var eventPairingDevice by remember { mutableStateOf<com.example.data.ConnectedDevice?>(null) }
-
-    val isMotherOrAdmin = effectiveDeviceStatus == "Active" &&
-        (userRole == "Mother Account" || userRole == "Admin" || userRole == "GM" || userRole == "General Manager")
-
-    val pendingDevices = remember(connectedDevices, activeCompanyId) {
-        connectedDevices.filter { device ->
-            device.status.equals("Pending", ignoreCase = true) &&
-            (activeCompanyId.isBlank() || device.companyId.isBlank() || device.companyId == activeCompanyId)
-        }
-    }
-
-    LaunchedEffect(isMotherOrAdmin) {
-        if (isMotherOrAdmin) {
-            viewModel.pairingApprovalEvents.collect { device ->
-                android.util.Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Event received in UI deviceId=${device.deviceId}")
-                eventPairingDevice = device
-                dismissedDeviceIds = dismissedDeviceIds - device.deviceId
-            }
-        }
-    }
-
-    val activePendingDevice = remember(pendingDevices, eventPairingDevice, dismissedDeviceIds, isMotherOrAdmin) {
-        if (!isMotherOrAdmin) null
-        else {
-            val eventDev = eventPairingDevice?.takeIf { ev ->
-                pendingDevices.any { it.deviceId == ev.deviceId } && ev.deviceId !in dismissedDeviceIds
-            }
-            eventDev ?: pendingDevices.firstOrNull { it.deviceId !in dismissedDeviceIds }
-        }
-    }
-
-    LaunchedEffect(connectedDevices, pendingDevices, activePendingDevice, isMotherOrAdmin) {
-        android.util.Log.d("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [UI_STATE] connectedDevices=${connectedDevices.size} pendingDevices=${pendingDevices.map { it.deviceId }} activePendingDevice=${activePendingDevice?.deviceId} isMotherOrAdmin=$isMotherOrAdmin")
-    }
-
-    activePendingDevice?.let { device ->
-        LaunchedEffect(device.deviceId) {
-            android.util.Log.d("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [DIALOG_RENDER] Showing PairingApprovalDialog for deviceId=${device.deviceId} deviceName=${device.deviceName}")
-        }
-        PairingApprovalDialog(
-            device = device,
-            onApprove = {
-                android.util.Log.d("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [APPROVAL_CLICKED] Approve clicked deviceId=${device.deviceId}")
-                android.util.Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Approve clicked deviceId=${device.deviceId}")
-                viewModel.approveDeviceAccess(device.deviceId)
-                if (eventPairingDevice?.deviceId == device.deviceId) {
-                    eventPairingDevice = null
-                }
-            },
-            onReject = {
-                android.util.Log.d("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [REJECT_CLICKED] Reject clicked deviceId=${device.deviceId}")
-                android.util.Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Reject clicked deviceId=${device.deviceId}")
-                viewModel.rejectDeviceAccess(device.deviceId)
-                if (eventPairingDevice?.deviceId == device.deviceId) {
-                    eventPairingDevice = null
-                }
-            },
-            onDismiss = {
-                android.util.Log.d("PAIRING_RUNTIME", "[PAIRING_RUNTIME] [DIALOG_DISMISSED] Dialog dismissed deviceId=${device.deviceId}")
-                android.util.Log.d("PAIRING_POPUP", "[PAIRING_POPUP] Dialog dismissed deviceId=${device.deviceId}")
-                dismissedDeviceIds = dismissedDeviceIds + device.deviceId
-                if (eventPairingDevice?.deviceId == device.deviceId) {
-                    eventPairingDevice = null
-                }
-            }
-        )
-    }
-
+    // The approval dialog has been moved exclusively to:
+    // شناسنامه مرکز -> دستگاه‌های متصل مجاز -> درخواست‌های اتصال
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route

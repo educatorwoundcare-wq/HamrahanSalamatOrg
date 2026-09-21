@@ -8,9 +8,9 @@ class TenantInterceptor(private val workspaceManager: WorkspaceManager) : Interc
         val request = chain.request()
         val requestBuilder = request.newBuilder()
         
-        val tenantId = workspaceManager.currentTenantId
-        if (!tenantId.isNullOrBlank() && tenantId != "COMP-LOCAL") {
-            requestBuilder.header("X-Tenant-ID", tenantId)
+        val companyId = workspaceManager.currentCompanyId
+        if (!companyId.isNullOrBlank() && companyId != "COMP-LOCAL") {
+            requestBuilder.header("X-Tenant-ID", companyId)
         } else {
             requestBuilder.removeHeader("X-Tenant-ID")
         }

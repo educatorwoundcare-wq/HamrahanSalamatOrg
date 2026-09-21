@@ -15,13 +15,14 @@ private val Context.workspaceDataStore by preferencesDataStore(name = "workspace
 
 class WorkspaceManager private constructor(private val context: Context) {
 
-    private val TENANT_ID_KEY = stringPreferencesKey("tenant_id")
+    private val LEGACY_TENANT_ID_KEY = stringPreferencesKey("tenant_id")
+    private val COMPANY_ID_KEY = stringPreferencesKey("company_id")
     private val SYNC_CODE_KEY = stringPreferencesKey("sync_code")
     private val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
     private val AUTH_UID_KEY = stringPreferencesKey("auth_uid")
     private val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
 
-    @Volatile var currentTenantId: String? = null
+    @Volatile var currentCompanyId: String? = null
         private set
     @Volatile var currentSyncCode: String? = null
         private set
@@ -35,7 +36,18 @@ class WorkspaceManager private constructor(private val context: Context) {
     init {
         runBlocking {
             val prefs = context.workspaceDataStore.data.first()
-            currentTenantId = WorkspaceSanitizer.getCanonicalCompanyId(prefs[TENANT_ID_KEY])
+            var compId = prefs[COMPANY_ID_KEY]
+            val legacyId = prefs[LEGACY_TENANT_ID_KEY]
+            
+            if (compId.isNullOrBlank() && !legacyId.isNullOrBlank()) {
+                // Safe migration from legacy tenant_id to company_id
+                compId = legacyId
+                context.workspaceDataStore.edit { editPrefs ->
+                    editPrefs[COMPANY_ID_KEY] = legacyId
+                    // We deliberately leave the legacy key intact for backward compatibility just in case
+                }
+            }
+            currentCompanyId = WorkspaceSanitizer.getCanonicalCompanyId(compId)
             currentSyncCode = WorkspaceSanitizer.getCanonicalSyncCode(prefs[SYNC_CODE_KEY])
             currentAuthToken = prefs[AUTH_TOKEN_KEY]
             currentAuthUid = prefs[AUTH_UID_KEY] ?: extractSubFromJwt(currentAuthToken)
@@ -43,13 +55,13 @@ class WorkspaceManager private constructor(private val context: Context) {
         }
     }
 
-    suspend fun saveIdentity(tenantId: String, syncCode: String, authToken: String, authUid: String? = null, refreshToken: String? = null) {
+    suspend fun saveIdentity(companyId: String, syncCode: String, authToken: String, authUid: String? = null, refreshToken: String? = null) {
         val resolvedUid = authUid ?: extractSubFromJwt(authToken)
-        val effectiveTenantId = if (tenantId.isNotBlank()) tenantId else (currentTenantId ?: "")
+        val effectiveCompanyId = if (companyId.isNotBlank()) companyId else (currentCompanyId ?: "")
         val effectiveSyncCode = if (syncCode.isNotBlank()) syncCode else (currentSyncCode ?: "")
         context.workspaceDataStore.edit { prefs ->
-            if (effectiveTenantId.isNotBlank()) {
-                prefs[TENANT_ID_KEY] = effectiveTenantId
+            if (effectiveCompanyId.isNotBlank()) {
+                prefs[COMPANY_ID_KEY] = effectiveCompanyId
             }
             if (effectiveSyncCode.isNotBlank()) {
                 prefs[SYNC_CODE_KEY] = effectiveSyncCode
@@ -62,7 +74,7 @@ class WorkspaceManager private constructor(private val context: Context) {
                 prefs.remove(AUTH_UID_KEY)
             }
         }
-        currentTenantId = effectiveTenantId.takeIf { it.isNotBlank() }
+        currentCompanyId = effectiveCompanyId.takeIf { it.isNotBlank() }
         currentSyncCode = effectiveSyncCode.takeIf { it.isNotBlank() }
         currentAuthToken = authToken
         if (refreshToken != null) currentRefreshToken = refreshToken
@@ -73,7 +85,7 @@ class WorkspaceManager private constructor(private val context: Context) {
         context.workspaceDataStore.edit { prefs ->
             prefs.clear()
         }
-        currentTenantId = null
+        currentCompanyId = null
         currentSyncCode = null
         currentAuthToken = null
         currentAuthUid = null
@@ -81,19 +93,19 @@ class WorkspaceManager private constructor(private val context: Context) {
 
     suspend fun clearWorkspaceTenantOnly() {
         context.workspaceDataStore.edit { prefs ->
-            prefs.remove(TENANT_ID_KEY)
+            prefs.remove(COMPANY_ID_KEY)
             prefs.remove(SYNC_CODE_KEY)
         }
-        currentTenantId = null
+        currentCompanyId = null
         currentSyncCode = null
     }
 
-    suspend fun updateTenantAndSyncCode(tenantId: String, syncCode: String) {
+    suspend fun updateCompanyAndSyncCode(companyId: String, syncCode: String) {
         context.workspaceDataStore.edit { prefs ->
-            prefs[TENANT_ID_KEY] = tenantId
+            prefs[COMPANY_ID_KEY] = companyId
             prefs[SYNC_CODE_KEY] = syncCode
         }
-        currentTenantId = tenantId
+        currentCompanyId = companyId
         currentSyncCode = syncCode
     }
 
@@ -139,7 +151,7 @@ class WorkspaceManager private constructor(private val context: Context) {
         }
     }
 
-    fun getTenantIdFlow(): Flow<String?> = context.workspaceDataStore.data.map { it[TENANT_ID_KEY] }
+    fun getTenantIdFlow(): Flow<String?> = context.workspaceDataStore.data.map { it[COMPANY_ID_KEY] }
 
     companion object {
         @Volatile private var INSTANCE: WorkspaceManager? = null

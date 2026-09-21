@@ -105,44 +105,13 @@ fun DashboardScreen(
     var alertFilterTab by remember { mutableStateOf("همه") }
     var dashboardTab by remember { mutableStateOf(0) } // 0 = خلاصه مالی و عملیاتی, 1 = تاریخچه فعالیت‌ها, 2 = صندوق پیام‌ها
     val connectedDevices by viewModel.connectedDevices.collectAsStateWithLifecycle()
-    val pendingRequests by viewModel.livePendingDevices.collectAsStateWithLifecycle()
     val userRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
-    val isMasterDevice by viewModel.isMasterDevice.collectAsStateWithLifecycle()
-    
-    // We only need local dismissal for the dialog. The persistent section remains visible.
-    var dismissedPendingDevices by remember { mutableStateOf(setOf<String>()) }
-    val visiblePendingDevicesForDialog = pendingRequests.filter { it.deviceId !in dismissedPendingDevices }
-    val shouldShowDialog = isMasterDevice && visiblePendingDevicesForDialog.isNotEmpty()
-
     var isQuickActionsExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(pendingRequests, isMasterDevice) {
-android.util.Log.d("PAIRING_DIAG", "PAIRING_DIAG_UI\nlivePendingCount=${pendingRequests.size}\npendingDeviceIds=[${pendingRequests.map { it.deviceId }.joinToString(",")}]\nisMasterDevice=$isMasterDevice")
-    }
-
-    DisposableEffect(Unit) {
-        viewModel.startPairingPolling()
-        onDispose {
-            viewModel.stopPairingPolling()
-        }
-    }
-
-    OnLifecycleEvent { _, event ->
-        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-            viewModel.refreshPairingRequests()
-        }
-    }
-
     LaunchedEffect(Unit) {
         viewModel.runAlertDiagnostics(context)
-    }
-
-    LaunchedEffect(pendingRequests.size, activeAlerts.size) {
-
-pendingRequests.forEach { dev ->
-}
     }
 
     // --- State Variables for Interactive Drill Down & Transparency Mode ---

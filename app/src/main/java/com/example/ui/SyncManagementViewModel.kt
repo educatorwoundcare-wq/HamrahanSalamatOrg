@@ -23,7 +23,7 @@ data class SyncManagementUiState(
     val auditLogs: List<AuditLog> = emptyList(),
     val syncQueueEvents: List<SyncQueue> = emptyList(),
     val isLoading: Boolean = false,
-    val tenantId: String? = null
+    val companyId: String? = null
 )
 
 class SyncManagementViewModel(
@@ -57,7 +57,7 @@ class SyncManagementViewModel(
             auditLogs = auditLogs,
             syncQueueEvents = syncQueues,
             isLoading = false,
-            tenantId = tenantId
+            companyId = tenantId
         )
     }.stateIn(
         scope = viewModelScope,

@@ -3,6 +3,7 @@ package com.example
 import android.app.Application
 import android.content.Context
 import android.util.Log
+import androidx.work.Configuration
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -46,8 +47,13 @@ class AppContainer(val context: Context) {
     }
 }
 
-class HamrahanApplication : Application() {
+class HamrahanApplication : Application(), Configuration.Provider {
     lateinit var container: AppContainer
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
 
     override fun onCreate() {
         super.onCreate()

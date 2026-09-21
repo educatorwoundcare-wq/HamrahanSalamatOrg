@@ -121,7 +121,7 @@ class SupabaseAuthSecurityTest {
 
         runBlocking {
             workspaceManager.saveIdentity(
-                tenantId = "COMP-TEST-TENANT",
+                companyId = "COMP-TEST-TENANT",
                 syncCode = "SYNC-VALID",
                 authToken = validJwt,
                 authUid = "user-valid-123"
@@ -157,7 +157,7 @@ class SupabaseAuthSecurityTest {
 
         runBlocking {
             workspaceManager.saveIdentity(
-                tenantId = "COMP-TEST-TENANT",
+                companyId = "COMP-TEST-TENANT",
                 syncCode = "SYNC-EXPIRED",
                 authToken = expiredJwt,
                 authUid = "user-expired-123"
@@ -192,7 +192,7 @@ class SupabaseAuthSecurityTest {
 
         runBlocking {
             workspaceManager.saveIdentity(
-                tenantId = "COMP-TEST-TENANT",
+                companyId = "COMP-TEST-TENANT",
                 syncCode = "SYNC-NEAR",
                 authToken = nearExpiryJwt,
                 authUid = "user-near-123"
@@ -227,7 +227,7 @@ class SupabaseAuthSecurityTest {
 
         runBlocking {
             workspaceManager.saveIdentity(
-                tenantId = "COMP-AUTH-999",
+                companyId = "COMP-AUTH-999",
                 syncCode = "SYNC-AUTH-999",
                 authToken = validToken,
                 authUid = "supabase-auth-user-999"
@@ -236,7 +236,7 @@ class SupabaseAuthSecurityTest {
 
         assertNotNull("currentAuthToken must not be null", workspaceManager.currentAuthToken)
         assertNotNull("currentAuthUid must not be null", workspaceManager.currentAuthUid)
-        assertEquals("COMP-AUTH-999", workspaceManager.currentTenantId)
+        assertEquals("COMP-AUTH-999", workspaceManager.currentCompanyId)
         assertEquals("SYNC-AUTH-999", workspaceManager.currentSyncCode)
         assertEquals("supabase-auth-user-999", workspaceManager.currentAuthUid)
         assertEquals(validToken, workspaceManager.currentAuthToken)

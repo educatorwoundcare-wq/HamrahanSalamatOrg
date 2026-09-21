@@ -317,8 +317,8 @@ class HamrahanViewModel @JvmOverloads constructor(
 
     // --- Access Control / User Roles ---
     val currentUserRole: StateFlow<String> = systemSettings.map { settings ->
-        settings.find { it.key == "active_device_role" }?.value ?: "Mother Account"
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Mother Account")
+        settings.find { it.key == "active_device_role" }?.value ?: "Staff"
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Staff")
     
     val isMasterDevice: StateFlow<Boolean> = systemSettings.map { settings ->
         val role = settings.find { it.key == "active_device_role" }?.value ?: ""
@@ -1280,7 +1280,7 @@ class HamrahanViewModel @JvmOverloads constructor(
                 }
 
                 // Step 11: WorkspaceManager.saveIdentity
-                Log.i("CREATE_OFFICE_11", "[CREATE_OFFICE_11]\nWorkspaceManager.saveIdentity\ntenantId: $generatedCompanyId\nsyncCode: $generatedSyncCode")
+                Log.i("CREATE_OFFICE_11", "[CREATE_OFFICE_11]\nWorkspaceManager.saveIdentity\ncompanyId: $generatedCompanyId\nsyncCode: $generatedSyncCode")
                 workspaceManager.saveIdentity(generatedCompanyId, generatedSyncCode, currentToken ?: "", authUid)
 
                 // Step 12: FINAL RESULT
@@ -1308,13 +1308,9 @@ class HamrahanViewModel @JvmOverloads constructor(
                 
                 // Clear local pending settings
                 repository.dao.insertSystemSetting(SystemSetting("active_device_status", "Unpaired"))
-                repository.dao.insertSystemSetting(SystemSetting("company_id", ""))
-                repository.dao.insertSystemSetting(SystemSetting("company_sync_code", ""))
                 repository.dao.insertSystemSetting(SystemSetting("pending_company_id", ""))
                 repository.dao.insertSystemSetting(SystemSetting("pending_sync_code", ""))
                 repository.dao.insertSystemSetting(SystemSetting("pending_company_name", ""))
-                
-                com.example.data.WorkspaceManager.getInstance(repository.context).clearWorkspaceTenantOnly()
                 
                 triggerSync()
             } catch (e: Exception) {
@@ -1437,31 +1433,16 @@ class HamrahanViewModel @JvmOverloads constructor(
 
                 // Step 8: Persist locally with Pending status (NOT active until approved by Mother Account)
                 val settings = listOf(
-                    SystemSetting("company_sync_code", normalizedSyncCode),
-                    SystemSetting("company_id", canonicalCompanyId),
-                    SystemSetting("company_name", centerName),
-                    SystemSetting("center_name", centerName),
-                    SystemSetting("support_phone", phone.trim()),
-                    SystemSetting("company_phone", phone.trim()),
-                    SystemSetting("company_is_setup", "false"),
-                    SystemSetting("active_device_id", devId),
-                    SystemSetting("active_device_name", "دستگاه همراه (پرسنل)"),
-                    SystemSetting("active_device_role", "Staff"),
-                    SystemSetting("device_has_been_approved", "false"),
+                    SystemSetting("pending_sync_code", normalizedSyncCode),
+                    SystemSetting("pending_company_id", canonicalCompanyId),
+                    SystemSetting("pending_company_name", centerName),
                     SystemSetting("active_device_status", "Pending")
                 )
                 for (s in settings) {
                     repository.insertSystemSetting(s)
                 }
-
                 repository.dao.insertConnectedDevice(selfDevice)
                 repository.registerLocalChange("ConnectedDevice", selfDevice.deviceId)
-
-                // Update tenant identity in workspace manager
-                workspaceManager.saveIdentity(canonicalCompanyId, normalizedSyncCode, currentToken ?: "", finalAuthUid)
-
-                // Reindex local workspace to target canonicalCompanyId
-                repository.reindexWorkspaceData(canonicalCompanyId)
 
                 // Enable online sync status
                 setOnline(true)

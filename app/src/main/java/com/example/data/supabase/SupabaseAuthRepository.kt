@@ -21,9 +21,9 @@ class SupabaseAuthRepository(
     private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
-    suspend fun signInAnonymously(tenantId: String, syncCode: String): AuthResult = withContext(Dispatchers.IO) {
+    suspend fun signInAnonymously(companyId: String, syncCode: String): AuthResult = withContext(Dispatchers.IO) {
         val url = "${clientManager.supabaseUrl}/auth/v1/signup"
-        val payload = mapOf("data" to mapOf("tenant_id" to tenantId, "sync_code" to syncCode))
+        val payload = mapOf("data" to mapOf("tenant_id" to companyId, "sync_code" to syncCode))
         val json = moshi.adapter(Map::class.java).toJson(payload)
         
         // Note: OkHttp client from clientManager automatically injects the apikey via interceptor
@@ -44,7 +44,7 @@ class SupabaseAuthRepository(
                     
                     if (!accessToken.isNullOrBlank() && !uid.isNullOrBlank() && !workspaceManager.isTokenExpired(accessToken)) {
                         workspaceManager.saveIdentity(
-                            tenantId = tenantId,
+                            companyId = companyId,
                             syncCode = syncCode,
                             authToken = accessToken,
                             authUid = uid,
@@ -93,7 +93,7 @@ class SupabaseAuthRepository(
                     
                     if (!newAccessToken.isNullOrBlank() && !workspaceManager.isTokenExpired(newAccessToken)) {
                         workspaceManager.saveIdentity(
-                            tenantId = workspaceManager.currentTenantId ?: "",
+                            companyId = workspaceManager.currentCompanyId ?: "",
                             syncCode = workspaceManager.currentSyncCode ?: "",
                             authToken = newAccessToken,
                             authUid = uid ?: workspaceManager.currentAuthUid,

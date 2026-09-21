@@ -144,7 +144,7 @@ fun SyncStatusSection(uiState: SyncManagementUiState, onForceSync: () -> Unit) {
                     color = TextPrimary
                 )
                 
-                uiState.tenantId?.let {
+                uiState.companyId?.let {
                     Text(
                         text = "شناسه مرکز: $it",
                         fontSize = 14.sp,

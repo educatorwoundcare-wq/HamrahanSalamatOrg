@@ -675,15 +675,21 @@ class CloudClient @JvmOverloads constructor(
             }
             
             if (!refreshed) {
-                if (!storedAuthUserId.isNullOrBlank()) {
-                    Log.e("AUTH_TRACE", "AUTH_IDENTITY_DRIFT_DETECTED: Stored UID exists ($storedAuthUserId) but session is unrecoverable.")
+                // Strict isolation of anonymous fallback (Initial Bootstrap Only)
+                val localCompanyId = dao?.getSystemSettingByKey("company_id")
+                val localPendingId = dao?.getSystemSettingByKey("pending_company_id")
+                val isExistingDevice = !localCompanyId.isNullOrBlank() || !localPendingId.isNullOrBlank()
+
+                if (!storedAuthUserId.isNullOrBlank() || isExistingDevice) {
+                    Log.e("AUTH_TRACE", "AUTH_IDENTITY_DRIFT_DETECTED: Stored UID exists ($storedAuthUserId) or Device is registered (companyId=$localCompanyId, pendingId=$localPendingId).")
                     Log.e("AUTH_TRACE", "AUTH_ANONYMOUS_FALLBACK_BLOCKED: Refusing to create new anonymous identity for existing device.")
                     Log.e("AUTH_TRACE", "AUTH_SESSION_UNRECOVERABLE")
                     return com.example.data.supabase.AuthResult.Error("AUTH_SESSION_UNRECOVERABLE")
                 } else {
+                    // Exact Allowed Scenario: Fresh installation without any prior workspace configuration
                     val syncCode = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code") ?: ""
                     
-                    Log.i("AUTH_TRACE", "Token missing/expired. Authenticating anonymously for companyId=$companyId, syncCode=$syncCode")
+                    Log.i("AUTH_TRACE", "Token missing/expired. Authenticating anonymously (Fresh Bootstrap) for companyId=$companyId, syncCode=$syncCode")
                     val authResult = authRepo.signInAnonymously(companyId, syncCode)
                     if (authResult !is com.example.data.supabase.AuthResult.Success) {
                         Log.e("AUTH_TRACE", "Anonymous authentication failed: $authResult")
@@ -711,7 +717,7 @@ class CloudClient @JvmOverloads constructor(
         Log.i("AUTH_TRACE", "AUTH_IDENTITY_CHECK_SUCCESS")
         Log.i("AUTH_TRACE", "PAIRING_AUTH_READY authUserId=$currentAuthUserId companyId=$companyId deviceId=$deviceId tokenPresent=true")
         
-        val localCompany = targetCompanyId ?: workspaceManager.currentTenantId ?: dao?.getSystemSettingByKey("company_id")
+        val localCompany = targetCompanyId ?: workspaceManager.currentCompanyId ?: dao?.getSystemSettingByKey("company_id")
         val localSync = targetSyncCode ?: workspaceManager.currentSyncCode ?: dao?.getSystemSettingByKey("company_sync_code")
         Log.i("IDENTITY_RECOVERY", "[IDENTITY_RECOVERY] authUid=$currentAuthUserId localCompanyId=$localCompany localSyncCode=$localSync remoteCreatorUid=N/A decision=ENSURE_AUTH_SESSION")
         
@@ -777,37 +783,6 @@ class CloudClient @JvmOverloads constructor(
             }
             val currentAuthUid = authContext.authUid ?: authUid
 
-            if (deviceRole == "Mother Account") {
-                val rpcJson = JSONObject().apply {
-                    put("p_app_version", "v2.0.0")
-                    put("p_company_id", companyId)
-                    put("p_device_id", deviceId)
-                    put("p_device_name", deviceName)
-                    put("p_device_type", deviceType)
-                    put("p_requested_role", "Mother Account")
-                }.toString()
-                
-                val rpcRequest = Request.Builder()
-                    .url("$baseUrl/rpc/bootstrap_creator_device")
-                    .post(rpcJson.toRequestBody(jsonMediaType))
-                    .build()
-                    
-                try {
-                    client.newCall(rpcRequest).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            val code = response.code
-                            val errBody = response.body?.string() ?: ""
-                            Log.e("DEVICE_WRITE", "RPC failed: HTTP $code $errBody")
-                            return@withLock DeviceResolution.Unauthorized(code, "خطای دسترسی در ثبت دستگاه مدیر: $errBody")
-                        }
-                    }
-                } catch (e: Exception) {
-                    return@withLock DeviceResolution.Failed(e)
-                }
-                
-                return@withLock resolveDevice(companyId, deviceId)
-            }
-            
             val resolution = resolveDevice(companyId, deviceId)
             when (resolution) {
                 is DeviceResolution.ExistsActive,
@@ -834,7 +809,7 @@ class CloudClient @JvmOverloads constructor(
                         put("app_version", "v2.0.0")
                         put("last_online_time", System.currentTimeMillis())
                         put("last_successful_sync", 0L)
-                        put("status", "Pending")
+                        put("status", initialStatus)
                         put("uid", currentAuthUid)
                         put("role", deviceRole)
                         put("last_seen", System.currentTimeMillis())
@@ -873,7 +848,7 @@ class CloudClient @JvmOverloads constructor(
         deviceId: String? = null
     ): SyncAuthorizationResult = withContext(Dispatchers.IO) {
         val targetCompanyId = companyId
-            ?: workspaceManager.currentTenantId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+            ?: workspaceManager.currentCompanyId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
             ?: dao?.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
 
         val targetDeviceId = deviceId?.takeIf { DeviceIdentityProvider.isValidUuidDeviceId(it) }
@@ -1007,7 +982,7 @@ class CloudClient @JvmOverloads constructor(
     ): BootstrapResult = withContext(Dispatchers.IO) {
         bootstrapMutex.withLock {
             val targetCompanyId = companyId 
-                ?: workspaceManager.currentTenantId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+                ?: workspaceManager.currentCompanyId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
                 ?: dao?.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
                 ?: ""
 
@@ -1059,12 +1034,8 @@ class CloudClient @JvmOverloads constructor(
                     wsRes.workspace
                 }
                 is WorkspaceResolution.ExistsForeign -> {
-                    Log.w("BOOTSTRAP", "[BOOTSTRAP] stage=WORKSPACE_RESOLVED companyId=$targetCompanyId deviceId=$devId authUidPresent=true result=IDENTITY_RECOVERY_REQUIRED")
-                    return@withLock BootstrapResult.IdentityRecoveryRequired(
-                        targetCompanyId,
-                        "Workspace belongs to a different owner",
-                        wsRes.remoteCreatorUid
-                    )
+                    Log.i("BOOTSTRAP", "[BOOTSTRAP] stage=WORKSPACE_RESOLVED companyId=$targetCompanyId deviceId=$devId authUidPresent=true result=CONFIRMED_FOREIGN remoteCreatorUid=${wsRes.remoteCreatorUid}")
+                    wsRes.workspace
                 }
                 is WorkspaceResolution.NotFound -> {
                     Log.i("BOOTSTRAP", "[BOOTSTRAP] stage=WORKSPACE_RESOLVED companyId=$targetCompanyId deviceId=$devId authUidPresent=true result=NOT_FOUND_CREATING")

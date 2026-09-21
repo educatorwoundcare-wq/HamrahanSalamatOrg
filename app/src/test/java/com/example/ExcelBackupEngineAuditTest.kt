@@ -271,7 +271,7 @@ class ExcelBackupEngineAuditTest {
             val sheet4 = workbook.getSheetAt(3)
             assertEquals("خدمات", sheet4.sheetName)
             assertEquals("شناسه خدمت", sheet4.getRow(2).getCell(0).stringCellValue)
-            assertEquals("پانسمان زخم بستر درجه ۴", sheet4.getRow(3).getCell(1).stringCellValue)
+            assertEquals("پانسمان زخم بستر درجه ۴", sheet4.getRow(3).getCell(3).stringCellValue)
 
             // Sheet 5: ثبت خدمات
             val sheet5 = workbook.getSheetAt(4)

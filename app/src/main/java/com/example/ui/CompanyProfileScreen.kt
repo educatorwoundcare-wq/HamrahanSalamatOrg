@@ -415,25 +415,6 @@ fun CompanyProfileScreen(viewModel: HamrahanViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Simulator for QR scanning
-                            Button(
-                                onClick = {
-                                    inputSyncCode = "HAMRAHAN-QR99-SYNC"
-                                    viewModel.joinCompanyWorkspace("HAMRAHAN-QR99-SYNC", selectedJoinRole)
-                                    snackbarMessage = "با موفقیت از طریق بارگذاری کد QR به مرکز متصل شدید."
-                                    showSuccessSnackbar = true
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .testTag("onboard_qr_scan_sim"),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.QrCodeScanner, null)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("شبیه‌ساز اسکن QR", fontWeight = FontWeight.Bold)
-                            }
 
                             Button(
                                 onClick = {

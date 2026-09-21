@@ -134,7 +134,7 @@ class SyncEngine @JvmOverloads constructor(
                 kotlinx.coroutines.delay(currentRetryDelay)
                 if (_isOnline.value && !_syncing.value && isActive) {
                     val wm = WorkspaceManager.getInstance(context)
-                    val companyId = wm.currentTenantId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
+                    val companyId = wm.currentCompanyId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
                     if (!companyId.isNullOrEmpty()) {
                         try {
                             sync()
@@ -231,7 +231,7 @@ class SyncEngine @JvmOverloads constructor(
         try {
             _syncing.value = true
             val wm = WorkspaceManager.getInstance(context)
-            val companyId = wm.currentTenantId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
+            var companyId = wm.currentCompanyId?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() } ?: dao.getSystemSettingByKey("pending_company_id")
             syncCompanyId = companyId
             val initialAuthUid = wm.currentAuthUid ?: wm.extractSubFromJwt(wm.currentAuthToken)
             syncAuthUid = initialAuthUid
@@ -299,6 +299,16 @@ class SyncEngine @JvmOverloads constructor(
                 (context.applicationContext as? com.example.HamrahanApplication)?.container?.repository?.reindexWorkspaceData(confirmedWorkspace.companyId)
             }
 
+
+            // Verify active company_id exists before proceeding to data sync
+            val finalCompanyId = dao.getSystemSettingByKey("company_id")
+            if (finalCompanyId.isNullOrBlank()) {
+                Log.w("SyncEngine", "Aborting data sync: active company_id is missing.")
+                return@withContext true
+            }
+            
+            // Explicitly use the canonical active company ID for data sync operations
+            companyId = finalCompanyId
 
             // Sync and persist authoritative role and status locally
             dao.insertSystemSetting(SystemSetting("active_device_role", activeDeviceRole))
@@ -433,7 +443,7 @@ class SyncEngine @JvmOverloads constructor(
 
             // Retrieve or validate canonical companyId
             val canonicalCompanyId = companyId.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
-                ?: WorkspaceManager.getInstance(context).currentTenantId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
+                ?: WorkspaceManager.getInstance(context).currentCompanyId?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
                 ?: dao.getSystemSettingByKey("company_id")?.takeIf { it.isNotBlank() && it != "COMP-LOCAL" }
                 ?: ""
 
